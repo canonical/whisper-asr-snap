@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net"
 	"os"
 	"os/exec"
 	"strings"
@@ -20,6 +21,7 @@ import (
 
 type clientCommand struct {
 	url            string
+	unixSocket     string
 	audioPath      string
 	sampleRate     int
 	chunkBytes     int
@@ -45,7 +47,8 @@ func NewClientCmd() *cobra.Command {
 		RunE:              cmd.run,
 	}
 
-	cobraCmd.Flags().StringVar(&cmd.url, "url", "ws://127.0.0.1:8080/ws", "UbuSTT websocket URL")
+	cobraCmd.Flags().StringVar(&cmd.url, "url", "ws://127.0.0.1:8080/ws", "UbuSTT websocket URL (ignored when --unix-socket is set)")
+	cobraCmd.Flags().StringVar(&cmd.unixSocket, "unix-socket", "", "path to a Unix domain socket to connect to (overrides --url)")
 	cobraCmd.Flags().StringVar(&cmd.audioPath, "audio", "data/samples/jfk.flac", "path to local audio file to stream")
 	cobraCmd.Flags().IntVar(&cmd.sampleRate, "rate", 16000, "sample rate to resample the audio to")
 	cobraCmd.Flags().IntVar(&cmd.chunkBytes, "chunk-bytes", 4096, "PCM16 bytes per append event")
@@ -59,8 +62,8 @@ func (cmd *clientCommand) run(cobraCmd *cobra.Command, _ []string) error {
 	if _, err := os.Stat(cmd.audioPath); err != nil {
 		return fmt.Errorf("audio file not accessible: %w", err)
 	}
-	if strings.TrimSpace(cmd.url) == "" {
-		return errors.New("url is required")
+	if strings.TrimSpace(cmd.url) == "" && strings.TrimSpace(cmd.unixSocket) == "" {
+		return errors.New("either --url or --unix-socket is required")
 	}
 	if cmd.realtimeFactor < 1 {
 		return errors.New("realtime-factor must be >= 1")
@@ -72,8 +75,19 @@ func (cmd *clientCommand) run(cobraCmd *cobra.Command, _ []string) error {
 
 	out := cobraCmd.OutOrStdout()
 
-	fmt.Fprintf(out, "connecting to %s\n", cmd.url)
-	conn, _, err := websocket.DefaultDialer.DialContext(ctx, cmd.url, nil)
+	dialer := *websocket.DefaultDialer
+	unixSocket := strings.TrimSpace(cmd.unixSocket)
+	if unixSocket != "" {
+		fmt.Fprintf(out, "connecting to unix socket %s\n", unixSocket)
+		dialer.NetDialContext = func(ctx context.Context, _, _ string) (net.Conn, error) {
+			return (&net.Dialer{}).DialContext(ctx, "unix", unixSocket)
+		}
+		cmd.url = "ws://unix/ws" // host is ignored when using unix socket, but must be a valid URL
+	} else {
+		fmt.Fprintf(out, "connecting to %s\n", cmd.url)
+	}
+
+	conn, _, err := dialer.DialContext(ctx, cmd.url, nil)
 	if err != nil {
 		return fmt.Errorf("dial ubustt server: %w", err)
 	}

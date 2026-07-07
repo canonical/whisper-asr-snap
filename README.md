@@ -72,3 +72,22 @@ streaming audio file: data/samples/sample.wav
 final transcript:
 <transcribed text>
 ```
+
+## Stream To The Proxy (Test Client)
+
+Use the `client` command to stream a local audio file to a running UbuSTT proxy server and print the transcription events as they arrive.
+
+Over TCP:
+
+```bash
+go run . client --url ws://127.0.0.1:8080/ws --audio data/samples/jfk.flac
+```
+
+Over a Unix domain socket:
+
+```bash
+go run . client --unix-socket /tmp/ubustt-proxy.sock --audio data/samples/jfk.flac
+```
+
+If `--unix-socket` argument is used, `--url` is ignored.
+
