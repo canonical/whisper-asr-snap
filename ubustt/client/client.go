@@ -30,6 +30,7 @@ type Client struct {
 	closeOnce sync.Once
 
 	mu                   sync.Mutex
+	modelLoaded          bool // true if the backend has loaded a model
 	session              *messages.SessionUpdateSession
 	itemSeq              int    // monotonic counter used to mint item ids
 	currentItemID        string // open (in-progress) transcription item, if any
@@ -47,8 +48,10 @@ func (c *Client) Start(ctx context.Context) error {
 	c.ctx = ctx
 
 	callbacks := backends.BackendCallbacks{
-		OnDelta:  c.onDelta,
-		OnCommit: c.onCommit,
+		OnDelta:         c.onDelta,
+		OnCommit:        c.onCommit,
+		OnModelLoaded:   c.onModelLoaded,
+		OnModelUnloaded: c.onModelUnloaded,
 	}
 
 	backend, err := c.factory(ctx, callbacks)
@@ -152,6 +155,14 @@ func (c *Client) handleInputAudioBufferAppend(m *messages.InputAudioBufferAppend
 	if c.backend == nil {
 		return fmt.Errorf("backend session not started")
 	}
+	if !c.modelLoaded {
+		c.send(messages.NewError(
+			messages.ErrorTypeInvalidRequest,
+			messages.ErrorCodeNoModelError,
+			"no model loaded",
+		))
+		return fmt.Errorf("no model loaded")
+	}
 	if err := c.backend.SendPCM16(pcm); err != nil {
 		return fmt.Errorf("forwarding audio to backend: %w", err)
 	}
@@ -165,6 +176,14 @@ func (c *Client) handleInputAudioBufferAppend(m *messages.InputAudioBufferAppend
 func (c *Client) handleInputAudioBufferCommit(_ *messages.InputAudioBufferCommit) error {
 	if c.backend == nil {
 		return fmt.Errorf("backend session not started")
+	}
+	if !c.modelLoaded {
+		c.send(messages.NewError(
+			messages.ErrorTypeInvalidRequest,
+			messages.ErrorCodeNoModelError,
+			"no model loaded",
+		))
+		return fmt.Errorf("no model loaded")
 	}
 	c.mu.Lock()
 	c.audioBufferFinalized = true
@@ -204,6 +223,30 @@ func (c *Client) onCommit(text string) {
 		// but if we close the connection here, data is not flushed to the client and the
 		// transcription completed message we just sent is lost along the way
 		// so we let the client close the connection after receiving the transcription completed message
+	}
+}
+
+// Invoked when the backend has loaded a model.
+func (c *Client) onModelLoaded() {
+	c.mu.Lock()
+	c.modelLoaded = true
+	c.mu.Unlock()
+	// Send a new ModelLoaded message to the user
+	err := c.send(new(messages.ModelLoaded))
+	if err != nil {
+		log.Printf("[WARN]: sending model loaded: %v", err)
+	}
+}
+
+// Invoked when the backend has unloaded a model.
+func (c *Client) onModelUnloaded() {
+	c.mu.Lock()
+	c.modelLoaded = false
+	c.mu.Unlock()
+	// Send a new ModelUnloaded message to the user
+	err := c.send(new(messages.ModelUnloaded))
+	if err != nil {
+		log.Printf("[WARN]: sending model unloaded: %v", err)
 	}
 }
 

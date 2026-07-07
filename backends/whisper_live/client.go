@@ -264,8 +264,11 @@ func (c *Client) handleMessage(raw []byte) {
 		c.recording = true
 		c.lastActivity = time.Now()
 		c.mu.Unlock()
-		c.readyOnce.Do(func() { close(c.ready) })
 		log.Printf("[INFO]: Server ready (backend: %s)", backend)
+		c.readyOnce.Do(func() { close(c.ready) })
+		if c.cfg.Callbacks.OnModelLoaded != nil {
+			c.cfg.Callbacks.OnModelLoaded()
+		}
 		return
 	}
 
@@ -274,6 +277,9 @@ func (c *Client) handleMessage(raw []byte) {
 		c.recording = false
 		c.mu.Unlock()
 		log.Printf("[INFO]: Server disconnected the session")
+		if c.cfg.Callbacks.OnModelUnloaded != nil {
+			c.cfg.Callbacks.OnModelUnloaded()
+		}
 		return
 	}
 

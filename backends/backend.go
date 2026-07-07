@@ -24,6 +24,10 @@ type BackendCallbacks struct {
 	OnDelta func(string)
 	// OnCommit is called when the backend has a finalized transcription.
 	OnCommit func(string)
+	// OnModelLoaded is called when the backend has loaded a model.
+	OnModelLoaded func()
+	// OnModelUnloaded is called when the backend has unloaded a model.
+	OnModelUnloaded func()
 }
 
 // Factory is a function that opens a new Backend session

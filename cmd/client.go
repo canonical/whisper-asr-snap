@@ -205,16 +205,20 @@ func (cmd *clientCommand) readLoop(out io.Writer, conn *websocket.Conn) {
 				m.Session.Audio.Input.Transcription.Language,
 				m.Session.Audio.Input.Format.Rate)
 
+		case *messages.SessionUpdated:
+			fmt.Fprintf(out, "[session.updated]: %v\n", m.Session)
+		case *messages.ConversationItemInputAudioTranscriptionDelta:
+			fmt.Fprintf(out, "[delta] %s\n", m.Delta)
+		case *messages.ModelLoaded:
+			fmt.Fprintf(out, "[model.loaded]\n")
 			go func() {
 				if err := cmd.sendAudio(out, conn); err != nil {
 					fmt.Fprintf(out, "error sending audio: %v\n", err)
 				}
 				fmt.Fprintln(out, "audio committed, waiting for final transcription")
 			}()
-		case *messages.SessionUpdated:
-			fmt.Fprintf(out, "[session.updated]: %v\n", m.Session)
-		case *messages.ConversationItemInputAudioTranscriptionDelta:
-			fmt.Fprintf(out, "[delta] %s\n", m.Delta)
+		case *messages.ModelUnloaded:
+			fmt.Fprintf(out, "[model.unloaded]\n")
 		case *messages.ConversationItemInputAudioTranscriptionCompleted:
 			fmt.Fprintf(out, "[completed] %s\n", m.Transcript)
 			if cmd.streamingCompleted {
