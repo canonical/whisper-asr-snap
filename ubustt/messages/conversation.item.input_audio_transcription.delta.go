@@ -17,3 +17,14 @@ type ConversationItemInputAudioTranscriptionDelta struct {
 func (m *ConversationItemInputAudioTranscriptionDelta) New() {
 	m.Type = "conversation.item.input_audio_transcription.delta"
 }
+
+// NewTranscriptionDelta builds an incremental transcript fragment event.
+func NewTranscriptionDelta(itemID string, contentIndex int, delta string) *ConversationItemInputAudioTranscriptionDelta {
+	m := &ConversationItemInputAudioTranscriptionDelta{
+		ItemID:       itemID,
+		ContentIndex: contentIndex,
+		Delta:        delta,
+	}
+	m.New()
+	return m
+}

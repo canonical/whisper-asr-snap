@@ -14,3 +14,27 @@ type Error struct {
 func (m *Error) New() {
 	m.Type = "error"
 }
+
+// Error type / code constants as defined by the UbuSTT error model.
+const (
+	ErrorTypeInvalidRequest = "invalid_request_error"
+	ErrorTypeServer         = "server_error"
+
+	ErrorCodeUnknownParameter = "unknown_parameter"
+	ErrorCodeInvalidParameter = "invalid_parameter"
+	ErrorCodeServerError      = "server_error"
+	ErrorCodeModelLoading     = "model_loading"
+)
+
+// NewError builds a structured error event.
+func NewError(errType, code, message string) *Error {
+	m := &Error{
+		Error: ErrorDetail{
+			Type:    errType,
+			Code:    code,
+			Message: message,
+		},
+	}
+	m.New()
+	return m
+}

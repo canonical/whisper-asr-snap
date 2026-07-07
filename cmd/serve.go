@@ -3,6 +3,7 @@ package cmd
 import (
 	"fmt"
 
+	whisperlive "ubustt-proxy/backends/whisper_live"
 	"ubustt-proxy/ubustt/server"
 
 	"github.com/spf13/cobra"
@@ -12,6 +13,11 @@ type serveCommand struct {
 	host       string
 	port       int
 	unixSocket string
+
+	backendHost  string
+	backendPort  int
+	backendModel string
+	backendLang  string
 }
 
 func NewServeCmd() *cobra.Command {
@@ -20,7 +26,7 @@ func NewServeCmd() *cobra.Command {
 	cobraCmd := &cobra.Command{
 		Use:               "serve",
 		Short:             "Start the websocket server",
-		Long:              "Start a websocket echo server and expose it on the configured host/port or on a Unix socket.",
+		Long:              "Start a UbuSTT websocket server that proxies each connection to a Whisper Live transcription backend.",
 		Args:              cobra.NoArgs,
 		ValidArgsFunction: cobra.NoFileCompletions,
 		RunE:              cmd.run,
@@ -30,11 +36,22 @@ func NewServeCmd() *cobra.Command {
 	cobraCmd.Flags().IntVar(&cmd.port, "port", 8080, "port to listen on")
 	cobraCmd.Flags().StringVar(&cmd.unixSocket, "unix-socket", "", "path to a Unix domain socket to bind (overrides --host/--port)")
 
+	cobraCmd.Flags().StringVar(&cmd.backendHost, "whisper-host", "127.0.0.1", "Whisper Live backend host")
+	cobraCmd.Flags().IntVar(&cmd.backendPort, "whisper-port", 9090, "Whisper Live backend port")
+	cobraCmd.Flags().StringVar(&cmd.backendModel, "whisper-model", "small", "Whisper model name")
+	cobraCmd.Flags().StringVar(&cmd.backendLang, "whisper-lang", "en", "source language code")
+
 	return cobraCmd
 }
 
 func (cmd *serveCommand) run(cobraCmd *cobra.Command, _ []string) error {
 	srv := server.NewWebSocketServer(cmd.host, cmd.port, cmd.unixSocket)
+	srv.SetBackendConfig(whisperlive.Config{
+		Host:  cmd.backendHost,
+		Port:  cmd.backendPort,
+		Model: cmd.backendModel,
+		Lang:  cmd.backendLang,
+	})
 	fmt.Fprintf(cobraCmd.OutOrStdout(), "starting websocket server on %s\n", srv.Address())
 	return srv.Start()
 }

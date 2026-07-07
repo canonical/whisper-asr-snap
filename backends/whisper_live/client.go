@@ -352,6 +352,21 @@ func (c *Client) sendAudio(samples []float32) error {
 	return c.write(websocket.BinaryMessage, buf)
 }
 
+// SendPCM16 forwards a chunk of little-endian signed 16-bit mono PCM audio to
+// the backend, converting it to the float32 format WhisperLive expects. It is
+// intended for live streaming, where audio already arrives paced in real time,
+// so it performs no pacing of its own. Safe for concurrent use.
+func (c *Client) SendPCM16(pcm []byte) error {
+	return c.sendAudio(pcm16ToFloat32(pcm))
+}
+
+// SendEndOfAudio signals the backend that the current stream is finished so it
+// flushes and emits any final segment. Note that WhisperLive treats this as the
+// end of the session and will close the connection afterwards.
+func (c *Client) SendEndOfAudio() error {
+	return c.sendEndOfAudio()
+}
+
 func (c *Client) sendEndOfAudio() error {
 	return c.write(websocket.BinaryMessage, []byte(endOfAudioMarker))
 }

@@ -49,3 +49,15 @@ func FromJson(jsonData []byte) (Message, error) {
 	}
 	return dst, nil
 }
+
+// ToJson serializes an outbound message to its JSON wire form. It calls New() to
+// guarantee the "type" discriminator is populated regardless of how the value
+// was constructed.
+func ToJson(m Message) ([]byte, error) {
+	m.New()
+	data, err := json.Marshal(m)
+	if err != nil {
+		return nil, fmt.Errorf("marshaling JSON: %w", err)
+	}
+	return data, nil
+}

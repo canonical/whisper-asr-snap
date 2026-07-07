@@ -34,3 +34,24 @@ type SessionCreated struct {
 func (m *SessionCreated) New() {
 	m.Type = "session.created"
 }
+
+// NewSessionCreated builds the default session advertised to a client right
+// after it connects. Values typically come from the active backend config.
+func NewSessionCreated(model, language string, rate int) *SessionCreated {
+	m := &SessionCreated{
+		Session: SessionCreatedSession{
+			Type: "realtime",
+			Audio: SessionCreatedAudio{
+				Input: SessionCreatedAudioInput{
+					Format: SessionCreatedFormat{Rate: rate},
+					Transcription: SessionCreatedTranscription{
+						Model:    model,
+						Language: language,
+					},
+				},
+			},
+		},
+	}
+	m.New()
+	return m
+}

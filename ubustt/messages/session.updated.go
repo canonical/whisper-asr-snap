@@ -34,3 +34,27 @@ type SessionUpdated struct {
 func (m *SessionUpdated) New() {
 	m.Type = "session.updated"
 }
+
+// NewSessionUpdated acknowledges an accepted session.update by echoing the
+// merged session state back to the client.
+func NewSessionUpdated(s SessionUpdateSession) *SessionUpdated {
+	m := &SessionUpdated{
+		Session: SessionUpdatedSession{
+			Type:         s.Type,
+			Instructions: s.Instructions,
+			Prompt:       s.Prompt,
+			Audio: SessionUpdatedAudio{
+				Input: SessionUpdatedAudioInput{
+					Format: SessionUpdatedFormat{Rate: s.Audio.Input.Format.Rate},
+					Transcription: SessionUpdatedTranscription{
+						Model:    s.Audio.Input.Transcription.Model,
+						Language: s.Audio.Input.Transcription.Language,
+					},
+				},
+			},
+			Include: s.Include,
+		},
+	}
+	m.New()
+	return m
+}

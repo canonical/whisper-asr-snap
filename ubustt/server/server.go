@@ -9,6 +9,8 @@ import (
 	"os"
 	"strconv"
 	"sync"
+
+	whisperlive "ubustt-proxy/backends/whisper_live"
 	"ubustt-proxy/ubustt/client"
 
 	"github.com/gorilla/websocket"
@@ -17,6 +19,8 @@ import (
 type WebSocketServer struct {
 	network string
 	address string
+
+	backendCfg whisperlive.Config
 
 	upgrader websocket.Upgrader
 	httpSrv  *http.Server
@@ -40,6 +44,12 @@ func NewWebSocketServer(host string, port int, unixSocketPath string) *WebSocket
 			CheckOrigin: func(r *http.Request) bool { return true },
 		},
 	}
+}
+
+// SetBackendConfig configures the WhisperLive backend session opened for each
+// connecting user.
+func (s *WebSocketServer) SetBackendConfig(cfg whisperlive.Config) {
+	s.backendCfg = cfg
 }
 
 func (s *WebSocketServer) Address() string {
@@ -115,7 +125,15 @@ func (s *WebSocketServer) HandleWebSocket(w http.ResponseWriter, r *http.Request
 	}
 	defer conn.Close()
 
-	c := client.NewClient(conn)
+	c := client.NewClient(conn, s.backendCfg)
+	defer c.Close()
+
+	// Open the WhisperLive backend session and advertise session.created before
+	// accepting audio from the user.
+	if err := c.Start(r.Context()); err != nil {
+		fmt.Printf("starting client session: %v\n", err)
+		return
+	}
 
 	for {
 		messageType, payload, err := conn.ReadMessage()
@@ -124,20 +142,13 @@ func (s *WebSocketServer) HandleWebSocket(w http.ResponseWriter, r *http.Request
 			return
 		}
 
-		if messageType == websocket.BinaryMessage {
-			fmt.Printf("Received unsupported binary message: %v\n", payload)
-			continue
-		}
-
-		if messageType == websocket.TextMessage {
+		switch messageType {
+		case websocket.BinaryMessage:
+			fmt.Printf("Received unsupported binary message of %d bytes\n", len(payload))
+		case websocket.TextMessage:
 			if err := c.HandleMessage(payload); err != nil {
 				fmt.Printf("Error handling message: %v\n", err)
-				continue
 			}
-		}
-
-		if err := conn.WriteMessage(messageType, payload); err != nil {
-			return
 		}
 	}
 }
