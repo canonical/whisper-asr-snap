@@ -26,6 +26,8 @@ type Client struct {
 
 	writeMu sync.Mutex // serializes websocket writes to the user
 
+	closeOnce sync.Once
+
 	mu            sync.Mutex
 	session       *messages.SessionUpdateSession
 	itemSeq       int     // monotonic counter used to mint item ids
@@ -71,14 +73,30 @@ func (c *Client) Start(ctx context.Context) error {
 	if err := c.send(created); err != nil {
 		return fmt.Errorf("sending session.created: %w", err)
 	}
+
+	// If the backend session ends (WhisperLive closed the connection, errored,
+	// or we tore it down), close the user connection too.
+	go c.watchBackend()
 	return nil
 }
 
-// Close tears down the backend session.
+// watchBackend blocks until the WhisperLive session ends and then closes the
+// user-facing connection, unblocking the server read loop.
+func (c *Client) watchBackend() {
+	<-c.backend.Done()
+	log.Printf("Whisper live backend closed, closing user connection")
+	c.Close()
+}
+
+// Close tears down the backend session and the user connection. It is safe to
+// call multiple times and from multiple goroutines.
 func (c *Client) Close() error {
-	if c.backend != nil {
-		return c.backend.Close()
-	}
+	c.closeOnce.Do(func() {
+		if c.backend != nil {
+			_ = c.backend.Close()
+		}
+		_ = c.Connection.Close()
+	})
 	return nil
 }
 

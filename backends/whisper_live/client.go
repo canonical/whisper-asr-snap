@@ -166,6 +166,13 @@ func (c *Client) Close() error {
 	return c.conn.Close()
 }
 
+// Done returns a channel that is closed once the backend read loop exits, i.e.
+// when the WhisperLive connection has closed (whether gracefully, on error, or
+// because Close was called).
+func (c *Client) Done() <-chan struct{} {
+	return c.closed
+}
+
 // FinalTranscript returns the accumulated completed segments plus the trailing
 // partial segment, joined into a single string.
 func (c *Client) FinalTranscript() string {
