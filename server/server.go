@@ -80,12 +80,13 @@ func (s *WebSocketServer) Start() error {
 		s.httpSrv = nil
 		return err
 	}
-	defer listener.Close()
+
 	if s.network == "unix" {
 		defer func() {
 			_ = os.Remove(s.address)
 		}()
 	}
+	defer listener.Close()
 
 	err = s.httpSrv.Serve(listener)
 	if err == http.ErrServerClosed {
