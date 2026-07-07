@@ -46,7 +46,12 @@ func NewClient(conn *websocket.Conn, sessionCfg backends.SessionConfig, factory 
 func (c *Client) Start(ctx context.Context) error {
 	c.ctx = ctx
 
-	backend, err := c.factory(ctx, c.onDelta, c.onCommit)
+	callbacks := backends.BackendCallbacks{
+		OnDelta:  c.onDelta,
+		OnCommit: c.onCommit,
+	}
+
+	backend, err := c.factory(ctx, callbacks)
 	if err != nil {
 		return fmt.Errorf("opening backend session: %w", err)
 	}

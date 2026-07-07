@@ -60,14 +60,13 @@ func (cmd *serveCommand) run(cobraCmd *cobra.Command, _ []string) error {
 			Model: cmd.backendModel,
 			Lang:  cmd.backendLang,
 		},
-		func(ctx context.Context, onDelta func(string), onCommit func(string)) (backends.Backend, error) {
+		func(ctx context.Context, cbs backends.BackendCallbacks) (backends.Backend, error) {
 			return whisperlive.Dial(ctx, whisperlive.Config{
-				Host:     cmd.backendHost,
-				Port:     cmd.backendPort,
-				Model:    cmd.backendModel,
-				Lang:     cmd.backendLang,
-				OnDelta:  onDelta,
-				OnCommit: onCommit,
+				Host:      cmd.backendHost,
+				Port:      cmd.backendPort,
+				Model:     cmd.backendModel,
+				Lang:      cmd.backendLang,
+				Callbacks: cbs,
 			})
 		},
 	)

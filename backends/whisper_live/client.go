@@ -21,6 +21,7 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"ubustt-proxy/backends"
 
 	"github.com/gorilla/websocket"
 )
@@ -57,12 +58,7 @@ type Config struct {
 	LogTranscription bool
 	OnTranscription  func(text string, segments []Segment)
 
-	// OnDelta is called with each new text fragment appended to the current
-	// partial segment.
-	OnDelta func(delta string)
-	// OnCommit is called when a segment is finalized. text is the full
-	// committed transcript; an empty string signals a partial reset.
-	OnCommit func(text string)
+	Callbacks backends.BackendCallbacks
 }
 
 func (c Config) withDefaults() Config {
@@ -340,7 +336,7 @@ func (c *Client) updateSegments(segments []Segment) {
 	if c.segmentID != newSegmentID {
 		// The backend started a new segment; commit the previous one.
 		completedText := segments[c.segmentID].Text
-		if fn := c.cfg.OnCommit; fn != nil {
+		if fn := c.cfg.Callbacks.OnCommit; fn != nil {
 			pending = append(pending, func() { fn(completedText) })
 		}
 		c.emitted = ""
@@ -353,23 +349,23 @@ func (c *Client) updateSegments(segments []Segment) {
 		if newText, ok := strings.CutPrefix(lastText, c.emitted); ok && newText != "" {
 			// Extend: only the new suffix is novel.
 			c.emitted = lastText
-			if fn := c.cfg.OnDelta; fn != nil {
+			if fn := c.cfg.Callbacks.OnDelta; fn != nil {
 				pending = append(pending, func() { fn(newText) })
 			}
 		} else {
 			// Revision: the backend rewrote the partial; reset and resend.
 			c.emitted = lastText
-			if fn := c.cfg.OnCommit; fn != nil {
+			if fn := c.cfg.Callbacks.OnCommit; fn != nil {
 				pending = append(pending, func() { fn("") })
 			}
-			if fn := c.cfg.OnDelta; fn != nil {
+			if fn := c.cfg.Callbacks.OnDelta; fn != nil {
 				t := c.emitted
 				pending = append(pending, func() { fn(t) })
 			}
 		}
 	} else if lastText == c.emitted && !c.emittedIsCommitted {
 		c.emittedIsCommitted = true
-		if fn := c.cfg.OnCommit; fn != nil {
+		if fn := c.cfg.Callbacks.OnCommit; fn != nil {
 			pending = append(pending, func() { fn(lastText) })
 		}
 	}

@@ -19,10 +19,15 @@ type Backend interface {
 	Finalize(ctx context.Context) error
 }
 
-// Factory opens a new Backend session. The onDelta and onCommit callbacks are
-// wired by the factory so the backend can emit transcription events without
-// knowing about the UbuSTT protocol.
-type Factory func(ctx context.Context, onDelta func(string), onCommit func(string)) (Backend, error)
+type BackendCallbacks struct {
+	// OnDelta is called when the backend has a new partial transcription.
+	OnDelta func(string)
+	// OnCommit is called when the backend has a finalized transcription.
+	OnCommit func(string)
+}
+
+// Factory is a function that opens a new Backend session
+type Factory func(ctx context.Context, callbacks BackendCallbacks) (Backend, error)
 
 // SessionConfig holds the session metadata advertised to the user via
 // session.created.
