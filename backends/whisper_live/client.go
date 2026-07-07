@@ -306,7 +306,12 @@ func (c *Client) updateSegments(segments []Segment) {
 		}
 		// Append only segments that start after the last completed one to avoid
 		// re-appending the repeated window the backend keeps resending.
-		if len(c.transcript) == 0 || seg.Start >= c.transcript[len(c.transcript)-1].End {
+		if len(c.transcript) > 0 {
+			lastSegment := c.transcript[len(c.transcript)-1]
+			if seg.Start >= lastSegment.End && seg.Text != lastSegment.Text {
+				c.transcript = append(c.transcript, seg)
+			}
+		} else {
 			c.transcript = append(c.transcript, seg)
 		}
 	}

@@ -58,7 +58,7 @@ Example with custom backend, model, language, and timeout:
 go run . transcribe \
 	--host 127.0.0.1 \
 	--port 9090 \
-	--audio data/samples/sample.wav \
+	--audio data/samples/jfk.flac \
 	--model small \
 	--lang en \
 	--timeout-sec 180
