@@ -35,8 +35,7 @@ type Client struct {
 	currentItemID      string // open (in-progress) transcription item, if any
 	emitted            string // text already sent as deltas for the current item
 	emittedIsCommitted bool   // true if the current item has been committed
-	segmentId          int
-	lastCompleted      float64 // end time of the last completed segment we forwarded
+	segmentID          int    // index of the last segment received from the backend
 }
 
 // NewClient creates a Client bound to a user websocket connection. The backend
@@ -193,16 +192,16 @@ func (c *Client) onTranscription(_ string, segments []whisperlive.Segment) {
 	lastSegment.Text = strings.TrimSpace(lastSegment.Text)
 
 	// If the backend starts with a new segment, commit the old one before moving on.
-	if c.segmentId != newSegmentId {
+	if c.segmentID != newSegmentId {
 		// commit and start with a new segment
-		completedText := segments[c.segmentId].Text
+		completedText := segments[c.segmentID].Text
 		fmt.Printf("[DEBUG] New segment received, committing  %q\n", completedText)
 		itemID := c.currentOrNewItemLocked()
 		outbound = append(outbound,
 			messages.NewTranscriptionCompleted(itemID, 0, completedText))
 		c.emitted = ""
 		c.emittedIsCommitted = false
-		c.segmentId = newSegmentId
+		c.segmentID = newSegmentId
 	}
 
 	if !lastSegment.Completed && lastSegment.Text != c.emitted {
@@ -265,13 +264,6 @@ func (c *Client) currentOrNewItemLocked() string {
 	return c.currentItemID
 }
 
-// rotateItemLocked closes the current item so the next partial starts a fresh
-// one. Callers must hold c.mu.
-func (c *Client) rotateItemLocked() {
-	c.currentItemID = ""
-	c.emitted = ""
-}
-
 // send serializes an outbound message and writes it to the user websocket.
 func (c *Client) send(m messages.Message) error {
 	data, err := messages.ToJson(m)
@@ -281,15 +273,6 @@ func (c *Client) send(m messages.Message) error {
 	c.writeMu.Lock()
 	defer c.writeMu.Unlock()
 	return c.Connection.WriteMessage(websocket.TextMessage, data)
-}
-
-// suffix returns the part of text that follows prev, or the whole text when prev
-// is not a prefix (the backend revised the partial rather than extending it).
-func suffix(text, prev string) string {
-	if prev != "" && strings.HasPrefix(text, prev) {
-		return text[len(prev):]
-	}
-	return text
 }
 
 // sessionFromCreated seeds local session state from the advertised defaults so
