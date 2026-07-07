@@ -23,6 +23,7 @@ type Client struct {
 
 	backendCfg whisperlive.Config
 	backend    *whisperlive.Client
+	ctx        context.Context // root context for the session lifetime
 
 	writeMu sync.Mutex // serializes websocket writes to the user
 
@@ -46,6 +47,8 @@ func NewClient(conn *websocket.Conn, backendCfg whisperlive.Config) *Client {
 // Start opens the WhisperLive backend session, waits until it is ready, and
 // advertises the default session configuration to the user via session.created.
 func (c *Client) Start(ctx context.Context) error {
+	c.ctx = ctx
+
 	cfg := c.backendCfg
 	cfg.OnTranscription = c.onTranscription
 
@@ -156,14 +159,20 @@ func (c *Client) handleInputAudioBufferAppend(m *messages.InputAudioBufferAppend
 	return nil
 }
 
-// handleInputAudioBufferCommit marks an utterance boundary. WhisperLive performs
-// its own VAD-based segmentation and emits completed events on its own schedule,
-// so there is nothing to flush here; the commit is accepted as a no-op.
+// handleInputAudioBufferCommit signals end of audio input. It launches the
+// finalization sequence in a goroutine: wait until the backend is idle (so the
+// final segment is not dropped), send END_OF_AUDIO, then wait for the server to
+// close — at which point watchBackend tears down the user connection.
 func (c *Client) handleInputAudioBufferCommit(_ *messages.InputAudioBufferCommit) error {
 	if c.backend == nil {
 		return fmt.Errorf("backend session not started")
 	}
-	return c.backend.SendEndOfAudio()
+	go func() {
+		if err := c.backend.Finalize(c.ctx); err != nil {
+			log.Printf("[WARN]: finalizing backend: %v", err)
+		}
+	}()
+	return nil
 }
 
 // onTranscription is invoked on the backend read loop for every transcription

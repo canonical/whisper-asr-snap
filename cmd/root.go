@@ -20,6 +20,7 @@ func NewRootCmd() *cobra.Command {
 
 	rootCmd.AddCommand(NewServeCmd())
 	rootCmd.AddCommand(NewTranscribeCmd())
+	rootCmd.AddCommand(NewClientCmd())
 	return rootCmd
 }
 

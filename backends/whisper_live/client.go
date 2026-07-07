@@ -363,7 +363,17 @@ func (c *Client) sendAudio(samples []float32) error {
 // the backend, converting it to the float32 format WhisperLive expects. It is
 // intended for live streaming, where audio already arrives paced in real time,
 // so it performs no pacing of its own. Safe for concurrent use.
+//
+// lastActivity is updated on every call so that waitUntilIdle (used by
+// Finalize) measures idle time from the last audio packet, not from the last
+// transcription update. Without this, a model that is slow to emit intermediate
+// segments would have an idleFor() that already exceeds IdleTimeout by the time
+// the commit arrives, causing END_OF_AUDIO to be sent before the backend has
+// processed the audio.
 func (c *Client) SendPCM16(pcm []byte) error {
+	c.mu.Lock()
+	c.lastActivity = time.Now()
+	c.mu.Unlock()
 	return c.sendAudio(pcm16ToFloat32(pcm))
 }
 
