@@ -8,7 +8,3 @@ type InputAudioBufferAppend struct {
 func (m *InputAudioBufferAppend) New() {
 	m.Type = "input_audio_buffer.append"
 }
-
-func (m *InputAudioBufferAppend) Run() error {
-	return nil
-}

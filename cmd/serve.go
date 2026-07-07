@@ -3,7 +3,7 @@ package cmd
 import (
 	"fmt"
 
-	"ubustt-proxy/server"
+	"ubustt-proxy/ubustt/server"
 
 	"github.com/spf13/cobra"
 )

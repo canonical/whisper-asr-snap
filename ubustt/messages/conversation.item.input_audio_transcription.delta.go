@@ -17,7 +17,3 @@ type ConversationItemInputAudioTranscriptionDelta struct {
 func (m *ConversationItemInputAudioTranscriptionDelta) New() {
 	m.Type = "conversation.item.input_audio_transcription.delta"
 }
-
-func (m *ConversationItemInputAudioTranscriptionDelta) Run() error {
-	return nil
-}

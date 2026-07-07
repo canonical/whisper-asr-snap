@@ -17,7 +17,3 @@ type ConversationItemInputAudioTranscriptionCompleted struct {
 func (m *ConversationItemInputAudioTranscriptionCompleted) New() {
 	m.Type = "conversation.item.input_audio_transcription.completed"
 }
-
-func (m *ConversationItemInputAudioTranscriptionCompleted) Run() error {
-	return nil
-}

@@ -37,9 +37,9 @@ func TestFromJsonSessionCreated(t *testing.T) {
 	}
 
 	// Check data type
-	got, ok := msg.message.(*SessionCreated)
+	got, ok := msg.(*SessionCreated)
 	if !ok {
-		t.Fatalf("message is %T, want *SessionCreated", msg.message)
+		t.Fatalf("message is %T, want *SessionCreated", msg)
 	}
 
 	// Check fields

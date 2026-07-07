@@ -14,7 +14,3 @@ type Error struct {
 func (m *Error) New() {
 	m.Type = "error"
 }
-
-func (m *Error) Run() error {
-	return nil
-}

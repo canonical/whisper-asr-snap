@@ -9,6 +9,7 @@ import (
 	"os"
 	"strconv"
 	"sync"
+	"ubustt-proxy/ubustt/client"
 
 	"github.com/gorilla/websocket"
 )
@@ -114,10 +115,25 @@ func (s *WebSocketServer) HandleWebSocket(w http.ResponseWriter, r *http.Request
 	}
 	defer conn.Close()
 
+	c := client.NewClient(conn)
+
 	for {
 		messageType, payload, err := conn.ReadMessage()
 		if err != nil {
+			fmt.Printf("reading message: %v\n", err)
 			return
+		}
+
+		if messageType == websocket.BinaryMessage {
+			fmt.Printf("Received unsupported binary message: %v\n", payload)
+			continue
+		}
+
+		if messageType == websocket.TextMessage {
+			if err := c.HandleMessage(payload); err != nil {
+				fmt.Printf("Error handling message: %v\n", err)
+				continue
+			}
 		}
 
 		if err := conn.WriteMessage(messageType, payload); err != nil {

@@ -34,7 +34,3 @@ type SessionUpdated struct {
 func (m *SessionUpdated) New() {
 	m.Type = "session.updated"
 }
-
-func (m *SessionUpdated) Run() error {
-	return nil
-}

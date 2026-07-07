@@ -6,23 +6,22 @@ import (
 )
 
 type MessageBase struct {
-	message
+	Message
 	Type string `json:"type"`
 }
 
-type message interface {
+type Message interface {
 	New()
-	Run() error
 }
 
-func FromJson(jsonData []byte) (MessageBase, error) {
+func FromJson(jsonData []byte) (Message, error) {
 	var msg MessageBase
 	err := json.Unmarshal(jsonData, &msg)
 	if err != nil {
-		return MessageBase{}, fmt.Errorf("unmarshaling JSON: %w", err)
+		return nil, fmt.Errorf("unmarshaling JSON: %w", err)
 	}
 
-	var dst message
+	var dst Message
 	switch msg.Type {
 
 	case "session.created":
@@ -42,11 +41,11 @@ func FromJson(jsonData []byte) (MessageBase, error) {
 	case "error":
 		dst = new(Error)
 	default:
-		return MessageBase{}, fmt.Errorf("unknown message type: %s", msg.Type)
+		return nil, fmt.Errorf("unknown message type: %s", msg.Type)
 	}
 
 	if err := json.Unmarshal(jsonData, dst); err != nil {
-		return MessageBase{}, fmt.Errorf("unmarshaling JSON: %w", err)
+		return nil, fmt.Errorf("unmarshaling JSON: %w", err)
 	}
-	return MessageBase{message: dst, Type: msg.Type}, nil
+	return dst, nil
 }
