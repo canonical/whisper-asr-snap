@@ -29,12 +29,13 @@ type Client struct {
 
 	closeOnce sync.Once
 
-	mu            sync.Mutex
-	session       *messages.SessionUpdateSession
-	itemSeq       int     // monotonic counter used to mint item ids
-	currentItemID string  // open (in-progress) transcription item, if any
-	emitted       string  // text already sent as deltas for the current item
-	lastCompleted float64 // end time of the last completed segment we forwarded
+	mu                 sync.Mutex
+	session            *messages.SessionUpdateSession
+	itemSeq            int     // monotonic counter used to mint item ids
+	currentItemID      string  // open (in-progress) transcription item, if any
+	emitted            string  // text already sent as deltas for the current item
+	emittedIsCommitted bool    // true if the current item has been committed
+	lastCompleted      float64 // end time of the last completed segment we forwarded
 }
 
 // NewClient creates a Client bound to a user websocket connection. The backend
@@ -185,26 +186,48 @@ func (c *Client) onTranscription(_ string, segments []whisperlive.Segment) {
 	var outbound []messages.Message
 
 	c.mu.Lock()
-	for _, seg := range segments {
-		if seg.Completed && seg.Start >= c.lastCompleted {
+
+	var lastSegment *whisperlive.Segment = &segments[len(segments)-1]
+	lastSegment.Text = strings.TrimSpace(lastSegment.Text)
+	if !lastSegment.Completed {
+		// append to current emitted text and send a delta if it has changed
+		c.emittedIsCommitted = false
+		fmt.Printf("[DEBUG]: last segment not completed, emitted=%q, lastSegment.Text=%q\n", c.emitted, lastSegment.Text)
+		if newText, ok := strings.CutPrefix(lastSegment.Text, c.emitted); ok && newText != "" {
+			// append only
+			c.emitted = lastSegment.Text
 			itemID := c.currentOrNewItemLocked()
 			outbound = append(outbound,
-				messages.NewTranscriptionCompleted(itemID, 0, strings.TrimSpace(seg.Text)))
-			c.lastCompleted = seg.End
-			c.rotateItemLocked()
+				messages.NewTranscriptionDelta(itemID, 0, newText))
+			fmt.Printf("   [DEBUG]: Sent new delta: %q\n", newText)
+		} else {
+			// reset and resend
+			c.emitted = lastSegment.Text
+
+			itemID := c.currentOrNewItemLocked()
+			outbound = append(outbound,
+				messages.NewTranscriptionCompleted(itemID, 0, ""))
+
+			itemID = c.currentOrNewItemLocked()
+			outbound = append(outbound,
+				messages.NewTranscriptionDelta(itemID, 0, c.emitted))
+			fmt.Printf("   [DEBUG]: Sent empty commit and a new delta: %q\n", c.emitted)
+		}
+
+	} else {
+
+		if lastSegment.Text == c.emitted && !c.emittedIsCommitted {
+			// send a committed event
+			itemID := c.currentOrNewItemLocked()
+			outbound = append(outbound,
+				messages.NewTranscriptionCompleted(itemID, 0, lastSegment.Text))
+			c.emitted = lastSegment.Text
+			c.emittedIsCommitted = true
+			fmt.Printf("[DEBUG]: Sent full commit: %q\n", lastSegment.Text)
+
 		}
 	}
 
-	// A trailing, not-yet-completed segment is streamed as an incremental delta.
-	last := segments[len(segments)-1]
-	if !last.Completed {
-		itemID := c.currentOrNewItemLocked()
-		if delta := suffix(last.Text, c.emitted); delta != "" {
-			outbound = append(outbound,
-				messages.NewTranscriptionDelta(itemID, 0, delta))
-			c.emitted = last.Text
-		}
-	}
 	c.mu.Unlock()
 
 	for _, msg := range outbound {
