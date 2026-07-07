@@ -42,7 +42,7 @@ The spec text says errors cover both client and server-side errors.
 ### server_error
 
 - `server_error`: generic internal failure.
-- `model_loading`: requested model is loading/not ready.
+- `no_model_error`: Server unable to transcribe because there is no model loaded.
 
 ## Required Fields
 
@@ -66,7 +66,7 @@ In `error` object:
 
 - Log structured fields (`type`, `code`, `message`) for diagnostics.
 - Distinguish retryable from non-retryable cases:
-  - Potentially retryable: `server_error/model_loading`
+  - Potentially retryable: `server_error/no_model_error`
   - Usually non-retryable until request is changed: `invalid_request_error/*`
 - Surface actionable message upstream for client/operator fixes.
 

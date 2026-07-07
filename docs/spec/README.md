@@ -43,6 +43,11 @@ The JSON Schema `oneOf` list in the spec defines the supported payload families.
 - `input_audio_buffer.append` (client -> server)
 - `input_audio_buffer.commit` (client -> server)
 
+### Model lifecycle
+
+- `model.loaded` (server -> client)
+- `model.unloaded` (server -> client)
+
 ### Transcription output
 
 - `conversation.item.input_audio_transcription.delta` (server -> client)
@@ -61,6 +66,8 @@ Detailed references are in `docs/spec/commands/`:
 - `session.updated.md`
 - `input_audio_buffer.append.md`
 - `input_audio_buffer.commit.md`
+- `model.loaded.md`
+- `model.unloaded.md`
 - `conversation.item.input_audio_transcription.delta.md`
 - `conversation.item.input_audio_transcription.completed.md`
 - `error.md`
@@ -90,11 +97,11 @@ From the schema text in the PDF:
 - Transcription delta/completed require `item_id` and `content_index`.
 - Error model supports:
   - `invalid_request_error` with codes `unknown_parameter`, `invalid_parameter`
-  - `server_error` with codes `server_error`, `model_loading`
+  - `server_error` with codes `server_error`, `no_model_error`
 
 ## Important Scope Note for Implementers
 
-The OpenAI example section in the PDF includes extra events such as:
+The OpenAI example section in the PDF includes extra events NOT in scope for UbuSTT, such as:
 
 - `input_audio_buffer.speech_started`
 - `input_audio_buffer.speech_stopped`
