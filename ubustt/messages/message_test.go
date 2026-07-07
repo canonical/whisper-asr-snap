@@ -10,7 +10,7 @@ func TestFromJsonSessionCreated(t *testing.T) {
 	prompt := "prompt"
 	want := &SessionCreated{
 		Session: SessionCreatedSession{
-			Type:         "transcription",
+			Type:         "realtime",
 			Instructions: "instructions",
 			Prompt:       &prompt,
 			Audio: SessionCreatedAudio{
@@ -423,5 +423,47 @@ func TestNewError(t *testing.T) {
 	}
 	if m.Error.Message != "something broke" {
 		t.Errorf("Error.Message = %q, want %q", m.Error.Message, "something broke")
+	}
+}
+
+func TestFromJsonModelLoaded(t *testing.T) {
+	want := &ModelLoaded{}
+	want.New()
+
+	data, err := json.Marshal(want)
+	if err != nil {
+		t.Fatalf("marshaling: %v", err)
+	}
+	msg, err := FromJson(data)
+	if err != nil {
+		t.Fatalf("FromJson: %v", err)
+	}
+	got, ok := msg.(*ModelLoaded)
+	if !ok {
+		t.Fatalf("got %T, want *ModelLoaded", msg)
+	}
+	if got.Type != "model.loaded" {
+		t.Errorf("Type = %q, want %q", got.Type, "model.loaded")
+	}
+}
+
+func TestFromJsonModelUnloaded(t *testing.T) {
+	want := &ModelUnloaded{}
+	want.New()
+
+	data, err := json.Marshal(want)
+	if err != nil {
+		t.Fatalf("marshaling: %v", err)
+	}
+	msg, err := FromJson(data)
+	if err != nil {
+		t.Fatalf("FromJson: %v", err)
+	}
+	got, ok := msg.(*ModelUnloaded)
+	if !ok {
+		t.Fatalf("got %T, want *ModelUnloaded", msg)
+	}
+	if got.Type != "model.unloaded" {
+		t.Errorf("Type = %q, want %q", got.Type, "model.unloaded")
 	}
 }

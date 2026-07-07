@@ -30,6 +30,10 @@ func FromJson(jsonData []byte) (Message, error) {
 		dst = new(SessionUpdate)
 	case "session.updated":
 		dst = new(SessionUpdated)
+	case "model.loaded":
+		dst = new(ModelLoaded)
+	case "model.unloaded":
+		dst = new(ModelUnloaded)
 	case "input_audio_buffer.append":
 		dst = new(InputAudioBufferAppend)
 	case "input_audio_buffer.commit":

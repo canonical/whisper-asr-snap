@@ -23,7 +23,7 @@ const (
 	ErrorCodeUnknownParameter = "unknown_parameter"
 	ErrorCodeInvalidParameter = "invalid_parameter"
 	ErrorCodeServerError      = "server_error"
-	ErrorCodeModelLoading     = "model_loading"
+	ErrorCodeNoModelError     = "no_model_error"
 )
 
 // NewError builds a structured error event.
