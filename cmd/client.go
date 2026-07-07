@@ -19,11 +19,12 @@ import (
 )
 
 type clientCommand struct {
-	url        string
-	audioPath  string
-	sampleRate int
-	chunkBytes int
-	timeoutSec int
+	url            string
+	audioPath      string
+	sampleRate     int
+	chunkBytes     int
+	timeoutSec     int
+	realtimeFactor float64
 
 	ctx                *context.Context
 	streamingCompleted bool
@@ -50,6 +51,7 @@ func NewClientCmd() *cobra.Command {
 	cobraCmd.Flags().IntVar(&cmd.sampleRate, "rate", 16000, "sample rate to resample the audio to")
 	cobraCmd.Flags().IntVar(&cmd.chunkBytes, "chunk-bytes", 4096, "PCM16 bytes per append event")
 	cobraCmd.Flags().IntVar(&cmd.timeoutSec, "timeout-sec", 180, "overall command timeout in seconds")
+	cobraCmd.Flags().Float64Var(&cmd.realtimeFactor, "realtime-factor", 1.0, "factor to adjust real-time pacing of audio streaming")
 
 	return cobraCmd
 }
@@ -60,6 +62,9 @@ func (cmd *clientCommand) run(cobraCmd *cobra.Command, _ []string) error {
 	}
 	if strings.TrimSpace(cmd.url) == "" {
 		return errors.New("url is required")
+	}
+	if cmd.realtimeFactor < 1 {
+		return errors.New("realtime-factor must be >= 1")
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(cmd.timeoutSec)*time.Second)
@@ -155,7 +160,7 @@ func (cmd *clientCommand) stream(out io.Writer, conn *websocket.Conn) error {
 			}
 			// Pace at real time: s16le mono => 2 bytes per sample.
 			samples := n / 2
-			pace := time.Duration(float64(samples) / float64(cmd.sampleRate) * float64(time.Second))
+			pace := time.Duration(float64(samples) / float64(cmd.sampleRate) * float64(time.Second) / cmd.realtimeFactor)
 			select {
 			case <-(*cmd.ctx).Done():
 				return (*cmd.ctx).Err()
