@@ -26,8 +26,7 @@ type clientCommand struct {
 	timeoutSec     int
 	realtimeFactor float64
 
-	ctx                *context.Context
-	streamingCompleted bool
+	ctx *context.Context
 }
 
 // NewClientCmd builds a small UbuSTT test client. It connects to a running
@@ -115,7 +114,6 @@ func (cmd *clientCommand) sendAudio(out io.Writer, conn *websocket.Conn) error {
 	}
 
 	fmt.Fprintf(out, "audio streaming complete\n")
-	cmd.streamingCompleted = true
 	return nil
 }
 
@@ -221,10 +219,6 @@ func (cmd *clientCommand) readLoop(out io.Writer, conn *websocket.Conn) {
 			fmt.Fprintf(out, "[model.unloaded]\n")
 		case *messages.ConversationItemInputAudioTranscriptionCompleted:
 			fmt.Fprintf(out, "[completed] %s\n", m.Transcript)
-			if cmd.streamingCompleted {
-				fmt.Fprintln(out, "transcription completed, closing connection")
-				_ = conn.Close()
-			}
 		case *messages.Error:
 			fmt.Fprintf(out, "[error] %s/%s: %s\n", m.Error.Type, m.Error.Code, m.Error.Message)
 		default:
