@@ -153,6 +153,11 @@ func (c *Client) handleInputAudioBufferAppend(m *messages.InputAudioBufferAppend
 		return nil
 	}
 	if c.backend == nil {
+		c.send(messages.NewError(
+			messages.ErrorTypeInvalidRequest,
+			messages.ErrorCodeNoModelError,
+			"backend session not started",
+		))
 		return fmt.Errorf("backend session not started")
 	}
 	if !c.modelLoaded {
@@ -175,6 +180,11 @@ func (c *Client) handleInputAudioBufferAppend(m *messages.InputAudioBufferAppend
 // close — at which point watchBackend tears down the user connection.
 func (c *Client) handleInputAudioBufferCommit(_ *messages.InputAudioBufferCommit) error {
 	if c.backend == nil {
+		c.send(messages.NewError(
+			messages.ErrorTypeInvalidRequest,
+			messages.ErrorCodeNoModelError,
+			"backend session not started",
+		))
 		return fmt.Errorf("backend session not started")
 	}
 	if !c.modelLoaded {
