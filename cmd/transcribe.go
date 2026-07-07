@@ -28,7 +28,7 @@ func NewTranscribeCmd() *cobra.Command {
 	cobraCmd := &cobra.Command{
 		Use:               "transcribe",
 		Short:             "Transcribe a local audio file with Whisper Live",
-		Long:              "Connect to a Whisper Live websocket backend and transcribe a local audio file through ffmpeg streaming.",
+		Long:              "Connect to a Whisper Live websocket backend and transcribe a local audio file through ffmpeg streaming. Requires ffmpeg.",
 		Args:              cobra.NoArgs,
 		ValidArgsFunction: cobra.NoFileCompletions,
 		RunE:              cmd.run,
