@@ -5,7 +5,6 @@ import (
 	"encoding/base64"
 	"fmt"
 	"log"
-	"strings"
 	"sync"
 
 	whisperlive "ubustt-proxy/backends/whisper_live"
@@ -29,13 +28,10 @@ type Client struct {
 
 	closeOnce sync.Once
 
-	mu                 sync.Mutex
-	session            *messages.SessionUpdateSession
-	itemSeq            int    // monotonic counter used to mint item ids
-	currentItemID      string // open (in-progress) transcription item, if any
-	emitted            string // text already sent as deltas for the current item
-	emittedIsCommitted bool   // true if the current item has been committed
-	segmentID          int    // index of the last segment received from the backend
+	mu            sync.Mutex
+	session       *messages.SessionUpdateSession
+	itemSeq       int    // monotonic counter used to mint item ids
+	currentItemID string // open (in-progress) transcription item, if any
 }
 
 // NewClient creates a Client bound to a user websocket connection. The backend
@@ -51,7 +47,8 @@ func (c *Client) Start(ctx context.Context) error {
 	c.ctx = ctx
 
 	cfg := c.backendCfg
-	cfg.OnTranscription = c.onTranscription
+	cfg.OnDelta = c.onDelta
+	cfg.OnCommit = c.onCommit
 
 	backend, err := whisperlive.Dial(ctx, cfg)
 	if err != nil {
@@ -176,80 +173,25 @@ func (c *Client) handleInputAudioBufferCommit(_ *messages.InputAudioBufferCommit
 	return nil
 }
 
-// onTranscription is invoked on the backend read loop for every transcription
-// update. It maps WhisperLive segments onto UbuSTT delta/completed events.
-func (c *Client) onTranscription(_ string, segments []whisperlive.Segment) {
-	if len(segments) == 0 {
-		return
-	}
-
-	var outbound []messages.Message
-
+// onDelta is called by the backend whenever a new text fragment is available
+// for the current partial segment.
+func (c *Client) onDelta(delta string) {
 	c.mu.Lock()
-
-	newSegmentId := len(segments) - 1
-	var lastSegment *whisperlive.Segment = &segments[newSegmentId]
-	lastSegment.Text = strings.TrimSpace(lastSegment.Text)
-
-	// If the backend starts with a new segment, commit the old one before moving on.
-	if c.segmentID != newSegmentId {
-		// commit and start with a new segment
-		completedText := segments[c.segmentID].Text
-		fmt.Printf("[DEBUG] New segment received, committing  %q\n", completedText)
-		itemID := c.currentOrNewItemLocked()
-		outbound = append(outbound,
-			messages.NewTranscriptionCompleted(itemID, 0, completedText))
-		c.emitted = ""
-		c.emittedIsCommitted = false
-		c.segmentID = newSegmentId
-	}
-
-	if !lastSegment.Completed && lastSegment.Text != c.emitted {
-		// append to current emitted text and send a delta if it has changed
-		c.emittedIsCommitted = false
-		fmt.Printf("[DEBUG]: last segment not completed, emitted=%q, lastSegment.Text=%q\n", c.emitted, lastSegment.Text)
-		if newText, ok := strings.CutPrefix(lastSegment.Text, c.emitted); ok && newText != "" {
-			// append only
-			c.emitted = lastSegment.Text
-			itemID := c.currentOrNewItemLocked()
-			outbound = append(outbound,
-				messages.NewTranscriptionDelta(itemID, 0, newText))
-			fmt.Printf("   [DEBUG]: Sent new delta: %q\n", newText)
-		} else {
-			// reset and resend
-			c.emitted = lastSegment.Text
-
-			itemID := c.currentOrNewItemLocked()
-			outbound = append(outbound,
-				messages.NewTranscriptionCompleted(itemID, 0, ""))
-
-			itemID = c.currentOrNewItemLocked()
-			outbound = append(outbound,
-				messages.NewTranscriptionDelta(itemID, 0, c.emitted))
-			fmt.Printf("   [DEBUG]: Sent empty commit and a new delta: %q\n", c.emitted)
-		}
-
-	} else {
-
-		if lastSegment.Text == c.emitted && !c.emittedIsCommitted {
-			// send a committed event
-			itemID := c.currentOrNewItemLocked()
-			outbound = append(outbound,
-				messages.NewTranscriptionCompleted(itemID, 0, lastSegment.Text))
-			c.emitted = lastSegment.Text
-			c.emittedIsCommitted = true
-			fmt.Printf("[DEBUG]: Sent full commit: %q\n", lastSegment.Text)
-
-		}
-	}
-
+	itemID := c.currentOrNewItemLocked()
 	c.mu.Unlock()
+	if err := c.send(messages.NewTranscriptionDelta(itemID, 0, delta)); err != nil {
+		log.Printf("[WARN]: sending transcription delta: %v", err)
+	}
+}
 
-	for _, msg := range outbound {
-		if err := c.send(msg); err != nil {
-			log.Printf("[WARN]: sending transcription event: %v", err)
-			return
-		}
+// onCommit is called by the backend when a segment is finalized. An empty text
+// signals a partial reset (the backend revised the in-progress text).
+func (c *Client) onCommit(text string) {
+	c.mu.Lock()
+	itemID := c.currentOrNewItemLocked()
+	c.mu.Unlock()
+	if err := c.send(messages.NewTranscriptionCompleted(itemID, 0, text)); err != nil {
+		log.Printf("[WARN]: sending transcription completed: %v", err)
 	}
 }
 
@@ -259,7 +201,6 @@ func (c *Client) currentOrNewItemLocked() string {
 	if c.currentItemID == "" {
 		c.itemSeq++
 		c.currentItemID = fmt.Sprintf("item_%d", c.itemSeq)
-		c.emitted = ""
 	}
 	return c.currentItemID
 }

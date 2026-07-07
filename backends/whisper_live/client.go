@@ -56,6 +56,13 @@ type Config struct {
 	// Observability.
 	LogTranscription bool
 	OnTranscription  func(text string, segments []Segment)
+
+	// OnDelta is called with each new text fragment appended to the current
+	// partial segment.
+	OnDelta func(delta string)
+	// OnCommit is called when a segment is finalized. text is the full
+	// committed transcript; an empty string signals a partial reset.
+	OnCommit func(text string)
 }
 
 func (c Config) withDefaults() Config {
@@ -99,6 +106,11 @@ type Client struct {
 	lastText     string    // last segment text, used to detect activity
 	lastLogged   string    // last line printed, used to dedupe logs
 	lastActivity time.Time
+
+	// Delta/commit tracking state (under mu).
+	segmentID          int
+	emitted            string
+	emittedIsCommitted bool
 }
 
 // Dial connects to the backend, sends the initial configuration and starts the
@@ -319,8 +331,54 @@ func (c *Client) updateSegments(segments []Segment) {
 	}
 	callback := c.cfg.OnTranscription
 	logIt := c.cfg.LogTranscription && changed
+
+	// Compute delta/commit callbacks to fire after releasing the lock.
+	newSegmentID := len(segments) - 1
+	lastText := strings.TrimSpace(last.Text)
+	var pending []func()
+
+	if c.segmentID != newSegmentID {
+		// The backend started a new segment; commit the previous one.
+		completedText := strings.TrimSpace(segments[c.segmentID].Text)
+		if fn := c.cfg.OnCommit; fn != nil {
+			pending = append(pending, func() { fn(completedText) })
+		}
+		c.emitted = ""
+		c.emittedIsCommitted = false
+		c.segmentID = newSegmentID
+	}
+
+	if !last.Completed && lastText != c.emitted {
+		c.emittedIsCommitted = false
+		if newText, ok := strings.CutPrefix(lastText, c.emitted); ok && newText != "" {
+			// Extend: only the new suffix is novel.
+			c.emitted = lastText
+			if fn := c.cfg.OnDelta; fn != nil {
+				pending = append(pending, func() { fn(newText) })
+			}
+		} else {
+			// Revision: the backend rewrote the partial; reset and resend.
+			c.emitted = lastText
+			if fn := c.cfg.OnCommit; fn != nil {
+				pending = append(pending, func() { fn("") })
+			}
+			if fn := c.cfg.OnDelta; fn != nil {
+				t := c.emitted
+				pending = append(pending, func() { fn(t) })
+			}
+		}
+	} else if last.Completed && lastText == c.emitted && !c.emittedIsCommitted {
+		c.emittedIsCommitted = true
+		if fn := c.cfg.OnCommit; fn != nil {
+			pending = append(pending, func() { fn(lastText) })
+		}
+	}
+
 	c.mu.Unlock()
 
+	for _, cb := range pending {
+		cb()
+	}
 	if callback != nil {
 		callback(line, segments)
 	}
