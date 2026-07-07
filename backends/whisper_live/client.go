@@ -33,55 +33,51 @@ type Segment struct {
 }
 
 type ClientConfig struct {
-	Host                   *string
-	Port                   *int
-	Lang                   *string
-	Translate              *bool
-	Model                  *string
-	SRTFilePath            *string
-	UseVAD                 *bool
-	UseWSS                 *bool
-	LogTranscription       *bool
-	SendLastNSegments      *int
-	NoSpeechThresh         *float64
-	ClipAudio              *bool
-	SameOutputThreshold    *int
-	TranscriptionCallback  TranscriptionCallback
-	EnableTranslation      *bool
-	TargetLanguage         *string
-	TranslationCallback    TranslationCallback
-	TranslationSRTFilePath *string
-	EnableTimestamps       *bool
-	DisplaySegments        *int
-	Hotwords               *string
-	EnableDiarization      *bool
-	MaxSpeakers            *int
-	WordTimestamps         *bool
-	MaxRetries             *int
-	RetryDelay             *time.Duration
-	InitialPrompt          *string
-	VADParameters          map[string]any
-	DisconnectAfterIdle    *time.Duration
-	UID                    *string
-	AudioFormat            *string
+	Host                  *string
+	Port                  *int
+	Lang                  *string
+	Translate             *bool
+	Model                 *string
+	UseVAD                *bool
+	UseWSS                *bool
+	LogTranscription      *bool
+	SendLastNSegments     *int
+	NoSpeechThresh        *float64
+	ClipAudio             *bool
+	SameOutputThreshold   *int
+	TranscriptionCallback TranscriptionCallback
+	EnableTranslation     *bool
+	TargetLanguage        *string
+	TranslationCallback   TranslationCallback
+	EnableTimestamps      *bool
+	DisplaySegments       *int
+	Hotwords              *string
+	EnableDiarization     *bool
+	MaxSpeakers           *int
+	WordTimestamps        *bool
+	MaxRetries            *int
+	RetryDelay            *time.Duration
+	InitialPrompt         *string
+	VADParameters         map[string]any
+	DisconnectAfterIdle   *time.Duration
+	UID                   *string
+	AudioFormat           *string
 }
 
 func DefaultClientConfig() ClientConfig {
 	return ClientConfig{
-		Model:                  new("small"),
-		SRTFilePath:            new("output.srt"),
-		UseVAD:                 new(true),
-		LogTranscription:       new(true),
-		SendLastNSegments:      new(10),
-		NoSpeechThresh:         new(0.45),
-		SameOutputThreshold:    new(10),
-		TargetLanguage:         new("fr"),
-		TranslationSRTFilePath: new("output_translated.srt"),
-		DisplaySegments:        new(4),
-		MaxSpeakers:            new(10),
-		RetryDelay:             new(5 * time.Second),
-		DisconnectAfterIdle:    new(15 * time.Second),
-		AudioFormat:            new("float32"),
+		Model:               new("small"),
+		UseVAD:              new(true),
+		LogTranscription:    new(true),
+		SendLastNSegments:   new(10),
+		NoSpeechThresh:      new(0.45),
+		SameOutputThreshold: new(10),
+		TargetLanguage:      new("fr"),
+		DisplaySegments:     new(4),
+		MaxSpeakers:         new(10),
+		RetryDelay:          new(5 * time.Second),
+		DisconnectAfterIdle: new(15 * time.Second),
+		AudioFormat:         new("float32"),
 	}
 }
 
@@ -125,12 +121,6 @@ func NewClient(cfg ClientConfig) (*Client, error) {
 	}
 	if cfg.Port == nil || *cfg.Port <= 0 {
 		return nil, fmt.Errorf("host and port are required")
-	}
-	if cfg.SRTFilePath == nil || strings.TrimSpace(*cfg.SRTFilePath) == "" {
-		return nil, fmt.Errorf("srt file path is required")
-	}
-	if cfg.TranslationSRTFilePath == nil || strings.TrimSpace(*cfg.TranslationSRTFilePath) == "" {
-		return nil, fmt.Errorf("translation srt file path is required")
 	}
 
 	uid := strings.TrimSpace(valueOrZero(cfg.UID))
@@ -544,36 +534,6 @@ func (c *Client) WaitBeforeDisconnect(ctx context.Context) error {
 	}
 }
 
-func (c *Client) WriteSRTFile(outputPath string) error {
-	c.mu.Lock()
-	if c.serverBackend == "faster_whisper" && c.lastSegment != nil {
-		if len(c.transcript) == 0 {
-			c.transcript = append(c.transcript, *c.lastSegment)
-		} else if c.transcript[len(c.transcript)-1].Text != c.lastSegment.Text {
-			c.transcript = append(c.transcript, *c.lastSegment)
-		}
-	}
-	transcript := append([]Segment(nil), c.transcript...)
-	translated := append([]Segment(nil), c.translatedTranscript...)
-	translationEnabled := valueOrZero(c.cfg.EnableTranslation)
-	translationPath := valueOrZero(c.cfg.TranslationSRTFilePath)
-	c.mu.Unlock()
-
-	if outputPath == "" {
-		outputPath = valueOrZero(c.cfg.SRTFilePath)
-	}
-
-	if err := createSRTFile(transcript, outputPath); err != nil {
-		return err
-	}
-	if translationEnabled {
-		if err := createSRTFile(translated, translationPath); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
 func (c *Client) GetClientSocket() *websocket.Conn {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
@@ -766,9 +726,6 @@ func mergeConfig(base, override ClientConfig) ClientConfig {
 	if override.Model != nil {
 		cfg.Model = override.Model
 	}
-	if override.SRTFilePath != nil {
-		cfg.SRTFilePath = override.SRTFilePath
-	}
 	if override.UseVAD != nil {
 		cfg.UseVAD = override.UseVAD
 	}
@@ -801,9 +758,6 @@ func mergeConfig(base, override ClientConfig) ClientConfig {
 	}
 	if override.TranslationCallback != nil {
 		cfg.TranslationCallback = override.TranslationCallback
-	}
-	if override.TranslationSRTFilePath != nil {
-		cfg.TranslationSRTFilePath = override.TranslationSRTFilePath
 	}
 	if override.EnableTimestamps != nil {
 		cfg.EnableTimestamps = override.EnableTimestamps

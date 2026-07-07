@@ -19,7 +19,6 @@ type transcribeCommand struct {
 	audioPath  string
 	model      string
 	lang       string
-	srtPath    string
 	timeoutSec int
 }
 
@@ -40,7 +39,6 @@ func NewTranscribeCmd() *cobra.Command {
 	cobraCmd.Flags().StringVar(&cmd.audioPath, "audio", "", "path to local audio file to transcribe")
 	cobraCmd.Flags().StringVar(&cmd.model, "model", "small", "Whisper model name")
 	cobraCmd.Flags().StringVar(&cmd.lang, "lang", "en", "source language code")
-	cobraCmd.Flags().StringVar(&cmd.srtPath, "srt", "output.srt", "output transcription SRT file path")
 	cobraCmd.Flags().IntVar(&cmd.timeoutSec, "timeout-sec", 180, "command timeout in seconds")
 	_ = cobraCmd.MarkFlagRequired("audio")
 
@@ -61,11 +59,8 @@ func (cmd *transcribeCommand) run(cobraCmd *cobra.Command, _ []string) error {
 			Port:             ptr(cmd.port),
 			Lang:             ptr(cmd.lang),
 			Model:            ptr(cmd.model),
-			SRTFilePath:      ptr(cmd.srtPath),
 			LogTranscription: ptr(true),
 		},
-		OutputTranscriptionSRT: cmd.srtPath,
-		MuteAudioPlayback:      true,
 	}
 
 	transcriptionClient, err := whisperlive.NewTranscriptionClient(cfg)
@@ -73,7 +68,7 @@ func (cmd *transcribeCommand) run(cobraCmd *cobra.Command, _ []string) error {
 		return fmt.Errorf("creating transcription client: %w", err)
 	}
 	defer func() {
-		_ = transcriptionClient.Tee.CloseAllClients()
+		_ = transcriptionClient.Tee.CloseClient()
 	}()
 
 	timeout := time.Duration(cmd.timeoutSec) * time.Second
@@ -86,7 +81,7 @@ func (cmd *transcribeCommand) run(cobraCmd *cobra.Command, _ []string) error {
 	}
 
 	fmt.Fprintf(cobraCmd.OutOrStdout(), "streaming audio file: %s\n", cmd.audioPath)
-	if err := transcriptionClient.Tee.ProcessHLSStream(ctx, cmd.audioPath, ""); err != nil {
+	if err := transcriptionClient.Tee.ProcessHLSStream(ctx, cmd.audioPath); err != nil {
 		return fmt.Errorf("processing audio stream: %w", err)
 	}
 
@@ -105,7 +100,6 @@ func (cmd *transcribeCommand) run(cobraCmd *cobra.Command, _ []string) error {
 	} else {
 		fmt.Fprintf(cobraCmd.OutOrStdout(), "final transcript:\n%s\n", finalText)
 	}
-	fmt.Fprintf(cobraCmd.OutOrStdout(), "srt written to: %s\n", cmd.srtPath)
 
 	return nil
 }
