@@ -217,6 +217,10 @@ func (cmd *clientCommand) readLoop(out io.Writer, conn *websocket.Conn) {
 			fmt.Fprintf(out, "[delta] %s\n", m.Delta)
 		case *messages.ConversationItemInputAudioTranscriptionCompleted:
 			fmt.Fprintf(out, "[completed] %s\n", m.Transcript)
+			if cmd.streamingCompleted {
+				fmt.Fprintln(out, "transcription completed, closing connection")
+				_ = conn.Close()
+			}
 		case *messages.Error:
 			fmt.Fprintf(out, "[error] %s/%s: %s\n", m.Error.Type, m.Error.Code, m.Error.Message)
 		default:

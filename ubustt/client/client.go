@@ -29,10 +29,11 @@ type Client struct {
 
 	closeOnce sync.Once
 
-	mu            sync.Mutex
-	session       *messages.SessionUpdateSession
-	itemSeq       int    // monotonic counter used to mint item ids
-	currentItemID string // open (in-progress) transcription item, if any
+	mu                   sync.Mutex
+	session              *messages.SessionUpdateSession
+	itemSeq              int    // monotonic counter used to mint item ids
+	currentItemID        string // open (in-progress) transcription item, if any
+	audioBufferFinalized bool   // true if the user has sent InputAudioBufferCommit
 }
 
 // NewClient creates a Client bound to a user websocket connection.
@@ -160,6 +161,9 @@ func (c *Client) handleInputAudioBufferCommit(_ *messages.InputAudioBufferCommit
 	if c.backend == nil {
 		return fmt.Errorf("backend session not started")
 	}
+	c.mu.Lock()
+	c.audioBufferFinalized = true
+	c.mu.Unlock()
 	go func() {
 		if err := c.backend.Finalize(c.ctx); err != nil {
 			log.Printf("[WARN]: finalizing backend: %v", err)
@@ -187,6 +191,14 @@ func (c *Client) onCommit(text string) {
 	c.mu.Unlock()
 	if err := c.send(messages.NewTranscriptionCompleted(itemID, 0, text)); err != nil {
 		log.Printf("[WARN]: sending transcription completed: %v", err)
+	}
+
+	if c.audioBufferFinalized {
+		log.Printf("Received onCommit after audio buffer finalized.\n")
+		// At this point we could close the connection and consider the session done
+		// but if we close the connection here, data is not flushed to the client and the
+		// transcription completed message we just sent is lost along the way
+		// so we let the client close the connection after receiving the transcription completed message
 	}
 }
 
