@@ -15,14 +15,14 @@ type message interface {
 	Run() error
 }
 
-func FromJson(jsonData []byte) (any, error) {
+func FromJson(jsonData []byte) (MessageBase, error) {
 	var msg MessageBase
 	err := json.Unmarshal(jsonData, &msg)
 	if err != nil {
-		return nil, fmt.Errorf("unmarshaling JSON: %w", err)
+		return MessageBase{}, fmt.Errorf("unmarshaling JSON: %w", err)
 	}
 
-	var dst any
+	var dst message
 	switch msg.Type {
 
 	case "session.created":
@@ -42,11 +42,11 @@ func FromJson(jsonData []byte) (any, error) {
 	case "error":
 		dst = new(Error)
 	default:
-		return nil, fmt.Errorf("unknown message type: %s", msg.Type)
+		return MessageBase{}, fmt.Errorf("unknown message type: %s", msg.Type)
 	}
 
 	if err := json.Unmarshal(jsonData, dst); err != nil {
-		return nil, fmt.Errorf("unmarshaling JSON: %w", err)
+		return MessageBase{}, fmt.Errorf("unmarshaling JSON: %w", err)
 	}
-	return dst, nil
+	return MessageBase{message: dst, Type: msg.Type}, nil
 }
