@@ -3,6 +3,10 @@ package cmd
 import (
 	"context"
 	"fmt"
+	"os"
+	"os/signal"
+	"syscall"
+	"time"
 
 	"ubustt-proxy/backends"
 	whisperlive "ubustt-proxy/backends/whisper_live"
@@ -47,6 +51,9 @@ func NewServeCmd() *cobra.Command {
 }
 
 func (cmd *serveCommand) run(cobraCmd *cobra.Command, _ []string) error {
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+
 	srv := server.NewWebSocketServer(cmd.host, cmd.port, cmd.unixSocket)
 	srv.SetBackend(
 		backends.SessionConfig{
@@ -65,5 +72,19 @@ func (cmd *serveCommand) run(cobraCmd *cobra.Command, _ []string) error {
 		},
 	)
 	fmt.Fprintf(cobraCmd.OutOrStdout(), "starting websocket server on %s\n", srv.Address())
-	return srv.Start()
+
+	startErr := make(chan error, 1)
+	go func() { startErr <- srv.Start() }()
+
+	select {
+	case err := <-startErr:
+		return err
+	case <-ctx.Done():
+		stop() // restore default SIGINT behaviour so a second Ctrl+C kills immediately
+		fmt.Fprintf(cobraCmd.OutOrStdout(), "\nshutting down...\n")
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		_ = srv.Stop(shutdownCtx)
+		return <-startErr
+	}
 }
