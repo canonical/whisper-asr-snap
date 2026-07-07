@@ -10,7 +10,7 @@ import (
 	"strconv"
 	"sync"
 
-	whisperlive "ubustt-proxy/backends/whisper_live"
+	"ubustt-proxy/backends"
 	"ubustt-proxy/ubustt/client"
 
 	"github.com/gorilla/websocket"
@@ -20,7 +20,8 @@ type WebSocketServer struct {
 	network string
 	address string
 
-	backendCfg whisperlive.Config
+	sessionCfg backends.SessionConfig
+	factory    backends.Factory
 
 	upgrader websocket.Upgrader
 	httpSrv  *http.Server
@@ -46,10 +47,11 @@ func NewWebSocketServer(host string, port int, unixSocketPath string) *WebSocket
 	}
 }
 
-// SetBackendConfig configures the WhisperLive backend session opened for each
-// connecting user.
-func (s *WebSocketServer) SetBackendConfig(cfg whisperlive.Config) {
-	s.backendCfg = cfg
+// SetBackend configures the session metadata and the factory used to open a
+// backend session for each connecting user.
+func (s *WebSocketServer) SetBackend(cfg backends.SessionConfig, factory backends.Factory) {
+	s.sessionCfg = cfg
+	s.factory = factory
 }
 
 func (s *WebSocketServer) Address() string {
@@ -125,11 +127,11 @@ func (s *WebSocketServer) HandleWebSocket(w http.ResponseWriter, r *http.Request
 	}
 	defer conn.Close()
 
-	c := client.NewClient(conn, s.backendCfg)
+	c := client.NewClient(conn, s.sessionCfg, s.factory)
 	defer c.Close()
 
-	// Open the WhisperLive backend session and advertise session.created before
-	// accepting audio from the user.
+	// Open the backend session and advertise session.created before accepting
+	// audio from the user.
 	if err := c.Start(r.Context()); err != nil {
 		fmt.Printf("starting client session: %v\n", err)
 		return

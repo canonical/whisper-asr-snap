@@ -7,21 +7,22 @@ import (
 	"log"
 	"sync"
 
-	whisperlive "ubustt-proxy/backends/whisper_live"
+	"ubustt-proxy/backends"
 	"ubustt-proxy/ubustt/messages"
 
 	"github.com/gorilla/websocket"
 )
 
 // Client holds the per-connection state for a single UbuSTT user. Each client
-// owns a dedicated WhisperLive backend session: audio frames received from the
-// user are forwarded to WhisperLive, and transcription results coming back from
-// WhisperLive are translated into UbuSTT events and pushed to the user.
+// owns a dedicated backend session: audio frames received from the user are
+// forwarded to the backend, and transcription results are translated into
+// UbuSTT events and pushed to the user.
 type Client struct {
 	Connection *websocket.Conn
 
-	backendCfg whisperlive.Config
-	backend    *whisperlive.Client
+	sessionCfg backends.SessionConfig
+	factory    backends.Factory
+	backend    backends.Backend
 	ctx        context.Context // root context for the session lifetime
 
 	writeMu sync.Mutex // serializes websocket writes to the user
@@ -34,37 +35,31 @@ type Client struct {
 	currentItemID string // open (in-progress) transcription item, if any
 }
 
-// NewClient creates a Client bound to a user websocket connection. The backend
-// configuration describes the WhisperLive session that will be opened for this
-// user by Start.
-func NewClient(conn *websocket.Conn, backendCfg whisperlive.Config) *Client {
-	return &Client{Connection: conn, backendCfg: backendCfg}
+// NewClient creates a Client bound to a user websocket connection.
+func NewClient(conn *websocket.Conn, sessionCfg backends.SessionConfig, factory backends.Factory) *Client {
+	return &Client{Connection: conn, sessionCfg: sessionCfg, factory: factory}
 }
 
-// Start opens the WhisperLive backend session, waits until it is ready, and
-// advertises the default session configuration to the user via session.created.
+// Start opens the backend session, waits until it is ready, and advertises the
+// session configuration to the user via session.created.
 func (c *Client) Start(ctx context.Context) error {
 	c.ctx = ctx
 
-	cfg := c.backendCfg
-	cfg.OnDelta = c.onDelta
-	cfg.OnCommit = c.onCommit
-
-	backend, err := whisperlive.Dial(ctx, cfg)
+	backend, err := c.factory(ctx, c.onDelta, c.onCommit)
 	if err != nil {
-		return fmt.Errorf("connecting to whisper live backend: %w", err)
+		return fmt.Errorf("opening backend session: %w", err)
 	}
 	c.backend = backend
 
 	if err := backend.WaitReady(ctx); err != nil {
-		return fmt.Errorf("waiting for whisper live backend: %w", err)
+		return fmt.Errorf("waiting for backend: %w", err)
 	}
 
-	rate := cfg.SampleRate
+	rate := c.sessionCfg.SampleRate
 	if rate <= 0 {
 		rate = 16000
 	}
-	created := messages.NewSessionCreated(cfg.Model, cfg.Lang, rate)
+	created := messages.NewSessionCreated(c.sessionCfg.Model, c.sessionCfg.Lang, rate)
 
 	c.mu.Lock()
 	session := sessionFromCreated(created)

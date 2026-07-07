@@ -1,8 +1,10 @@
 package cmd
 
 import (
+	"context"
 	"fmt"
 
+	"ubustt-proxy/backends"
 	whisperlive "ubustt-proxy/backends/whisper_live"
 	"ubustt-proxy/ubustt/server"
 
@@ -46,12 +48,22 @@ func NewServeCmd() *cobra.Command {
 
 func (cmd *serveCommand) run(cobraCmd *cobra.Command, _ []string) error {
 	srv := server.NewWebSocketServer(cmd.host, cmd.port, cmd.unixSocket)
-	srv.SetBackendConfig(whisperlive.Config{
-		Host:  cmd.backendHost,
-		Port:  cmd.backendPort,
-		Model: cmd.backendModel,
-		Lang:  cmd.backendLang,
-	})
+	srv.SetBackend(
+		backends.SessionConfig{
+			Model: cmd.backendModel,
+			Lang:  cmd.backendLang,
+		},
+		func(ctx context.Context, onDelta func(string), onCommit func(string)) (backends.Backend, error) {
+			return whisperlive.Dial(ctx, whisperlive.Config{
+				Host:     cmd.backendHost,
+				Port:     cmd.backendPort,
+				Model:    cmd.backendModel,
+				Lang:     cmd.backendLang,
+				OnDelta:  onDelta,
+				OnCommit: onCommit,
+			})
+		},
+	)
 	fmt.Fprintf(cobraCmd.OutOrStdout(), "starting websocket server on %s\n", srv.Address())
 	return srv.Start()
 }
