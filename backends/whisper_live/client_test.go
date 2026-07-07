@@ -4,6 +4,7 @@ import (
 	"sync"
 	"testing"
 	"time"
+	"ubustt-proxy/backends"
 )
 
 // ── FinalTranscript ───────────────────────────────────────────────────────────
@@ -137,10 +138,12 @@ func TestUpdateSegmentsOnDeltaCalledWithSuffix(t *testing.T) {
 	var mu sync.Mutex
 	var deltas []string
 	c := newTestClient(Config{
-		OnDelta: func(d string) {
-			mu.Lock()
-			defer mu.Unlock()
-			deltas = append(deltas, d)
+		Callbacks: backends.BackendCallbacks{
+			OnDelta: func(d string) {
+				mu.Lock()
+				defer mu.Unlock()
+				deltas = append(deltas, d)
+			},
 		},
 	})
 
@@ -165,15 +168,17 @@ func TestUpdateSegmentsOnDeltaRevisionResetsAndResends(t *testing.T) {
 	var deltas []string
 	var commits []string
 	c := newTestClient(Config{
-		OnDelta: func(d string) {
-			mu.Lock()
-			defer mu.Unlock()
-			deltas = append(deltas, d)
-		},
-		OnCommit: func(text string) {
-			mu.Lock()
-			defer mu.Unlock()
-			commits = append(commits, text)
+		Callbacks: backends.BackendCallbacks{
+			OnDelta: func(d string) {
+				mu.Lock()
+				defer mu.Unlock()
+				deltas = append(deltas, d)
+			},
+			OnCommit: func(text string) {
+				mu.Lock()
+				defer mu.Unlock()
+				commits = append(commits, text)
+			},
 		},
 	})
 
@@ -206,10 +211,12 @@ func TestUpdateSegmentsOnCommitCalledWhenSegmentCompletes(t *testing.T) {
 	var mu sync.Mutex
 	var commits []string
 	c := newTestClient(Config{
-		OnCommit: func(text string) {
-			mu.Lock()
-			defer mu.Unlock()
-			commits = append(commits, text)
+		Callbacks: backends.BackendCallbacks{
+			OnCommit: func(text string) {
+				mu.Lock()
+				defer mu.Unlock()
+				commits = append(commits, text)
+			},
 		},
 	})
 
