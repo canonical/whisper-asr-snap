@@ -2,8 +2,11 @@ package server
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"net"
 	"net/http"
+	"os"
 	"strconv"
 	"sync"
 
@@ -11,8 +14,8 @@ import (
 )
 
 type WebSocketServer struct {
-	host string
-	port int
+	network string
+	address string
 
 	upgrader websocket.Upgrader
 	httpSrv  *http.Server
@@ -20,10 +23,18 @@ type WebSocketServer struct {
 	running  bool
 }
 
-func NewWebSocketServer(host string, port int) *WebSocketServer {
+func NewWebSocketServer(host string, port int, unixSocketPath string) *WebSocketServer {
+	network := "tcp"
+	address := net.JoinHostPort(host, strconv.Itoa(port))
+
+	if unixSocketPath != "" {
+		network = "unix"
+		address = unixSocketPath
+	}
+
 	return &WebSocketServer{
-		host: host,
-		port: port,
+		network: network,
+		address: address,
 		upgrader: websocket.Upgrader{
 			CheckOrigin: func(r *http.Request) bool { return true },
 		},
@@ -31,7 +42,10 @@ func NewWebSocketServer(host string, port int) *WebSocketServer {
 }
 
 func (s *WebSocketServer) Address() string {
-	return s.host + ":" + strconv.Itoa(s.port)
+	if s.network == "unix" {
+		return "unix://" + s.address
+	}
+	return s.address
 }
 
 func (s *WebSocketServer) Start() error {
@@ -47,12 +61,33 @@ func (s *WebSocketServer) Start() error {
 	mux.HandleFunc("/", s.handleHealth)
 
 	s.httpSrv = &http.Server{
-		Addr:    s.Address(),
+		Addr:    s.address,
 		Handler: mux,
 	}
 	s.running = true
 
-	err := s.httpSrv.ListenAndServe()
+	if s.network == "unix" {
+		if err := os.Remove(s.address); err != nil && !errors.Is(err, os.ErrNotExist) {
+			s.running = false
+			s.httpSrv = nil
+			return fmt.Errorf("removing existing unix socket %q: %w", s.address, err)
+		}
+	}
+
+	listener, err := net.Listen(s.network, s.address)
+	if err != nil {
+		s.running = false
+		s.httpSrv = nil
+		return err
+	}
+	defer listener.Close()
+	if s.network == "unix" {
+		defer func() {
+			_ = os.Remove(s.address)
+		}()
+	}
+
+	err = s.httpSrv.Serve(listener)
 	if err == http.ErrServerClosed {
 		err = nil
 	}
