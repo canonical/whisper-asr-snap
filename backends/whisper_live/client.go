@@ -474,14 +474,39 @@ func (c *Client) WaitBeforeDisconnect(ctx context.Context) error {
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
+		case <-c.runDone:
+			return nil
 		case <-ticker.C:
 			c.mu.RLock()
 			elapsed := time.Since(c.lastResponseReceived)
+			recording := c.recording
 			c.mu.RUnlock()
+			if !recording {
+				// The backend ended the session (e.g. closed or disconnected);
+				// there is nothing more to wait for.
+				return nil
+			}
 			if elapsed >= idleFor {
 				return nil
 			}
 		}
+	}
+}
+
+// WaitForServerClose blocks until the backend closes the connection or the grace
+// period elapses, whichever comes first. It gives the backend a short window to
+// deliver a final flushed segment after END_OF_AUDIO before the client tears the
+// connection down.
+func (c *Client) WaitForServerClose(ctx context.Context, grace time.Duration) {
+	if grace <= 0 {
+		grace = 5 * time.Second
+	}
+	timer := time.NewTimer(grace)
+	defer timer.Stop()
+	select {
+	case <-c.runDone:
+	case <-timer.C:
+	case <-ctx.Done():
 	}
 }
 
@@ -535,6 +560,19 @@ func (c *Client) Transcript() []Segment {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 	return append([]Segment(nil), c.transcript...)
+}
+
+// LastSegment returns a copy of the most recent in-progress (not yet completed)
+// segment, or nil if there is none. This is the trailing partial transcript that
+// has not been finalized by the backend.
+func (c *Client) LastSegment() *Segment {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	if c.lastSegment == nil {
+		return nil
+	}
+	cp := *c.lastSegment
+	return &cp
 }
 
 func (c *Client) TranslatedTranscript() []Segment {

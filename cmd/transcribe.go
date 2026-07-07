@@ -86,10 +86,19 @@ func (cmd *transcribeCommand) run(cobraCmd *cobra.Command, _ []string) error {
 	}
 
 	segments := transcriptionClient.Client.Transcript()
-	parts := make([]string, 0, len(segments))
+	parts := make([]string, 0, len(segments)+1)
 	for _, seg := range segments {
 		text := strings.TrimSpace(seg.Text)
 		if text != "" {
+			parts = append(parts, text)
+		}
+	}
+
+	// Append the trailing in-progress segment so the final line of speech is not
+	// lost when the backend disconnects before marking it completed.
+	if last := transcriptionClient.Client.LastSegment(); last != nil {
+		text := strings.TrimSpace(last.Text)
+		if text != "" && (len(parts) == 0 || parts[len(parts)-1] != text) {
 			parts = append(parts, text)
 		}
 	}

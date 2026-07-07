@@ -90,15 +90,18 @@ func (t *TranscriptionTeeClient) StreamPCM16LEReader(ctx context.Context, r io.R
 		}
 
 		n, err := io.ReadFull(reader, chunk)
+		if n > 0 {
+			// io.ReadFull leaves the final partial chunk in chunk[:n] on a short
+			// read; send it so the tail of the audio is not dropped.
+			audioFloat := bytesToFloat32PCM(chunk[:n])
+			if sendErr := t.Client.SendPacketToServer(float32ToBytes(audioFloat)); sendErr != nil {
+				return sendErr
+			}
+		}
 		if err != nil {
 			if errorsIsEOFLike(err) {
 				break
 			}
-			return err
-		}
-
-		audioFloat := bytesToFloat32PCM(chunk[:n])
-		if err := t.Client.SendPacketToServer(float32ToBytes(audioFloat)); err != nil {
 			return err
 		}
 
@@ -109,9 +112,17 @@ func (t *TranscriptionTeeClient) StreamPCM16LEReader(ctx context.Context, r io.R
 		}
 	}
 
-	// Signal end-of-audio first so the backend can flush final segments before disconnect.
-	_ = t.Client.SendPacketToServer([]byte(endOfAudioMarker))
+	// Wait for the backend to finish transcribing the audio it has already
+	// buffered before signaling end-of-audio. Sending END_OF_AUDIO too early
+	// makes some backends stop transcription and close the socket, dropping the
+	// final segment.
 	_ = t.Client.WaitBeforeDisconnect(ctx)
+
+	// Signal end-of-audio so backends that only flush on END_OF_AUDIO emit their
+	// final segment, then wait briefly for that segment (or the server close)
+	// before tearing the connection down.
+	_ = t.Client.SendEndOfAudio()
+	t.Client.WaitForServerClose(ctx, t.Config.DisconnectGraceAfter)
 	return t.CloseClient()
 }
 
