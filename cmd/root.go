@@ -19,6 +19,7 @@ func NewRootCmd() *cobra.Command {
 	rootCmd.CompletionOptions.HiddenDefaultCmd = true
 
 	rootCmd.AddCommand(NewServeCmd())
+	rootCmd.AddCommand(NewTranscribeCmd())
 	return rootCmd
 }
 
