@@ -31,10 +31,11 @@ type Client struct {
 
 	mu                 sync.Mutex
 	session            *messages.SessionUpdateSession
-	itemSeq            int     // monotonic counter used to mint item ids
-	currentItemID      string  // open (in-progress) transcription item, if any
-	emitted            string  // text already sent as deltas for the current item
-	emittedIsCommitted bool    // true if the current item has been committed
+	itemSeq            int    // monotonic counter used to mint item ids
+	currentItemID      string // open (in-progress) transcription item, if any
+	emitted            string // text already sent as deltas for the current item
+	emittedIsCommitted bool   // true if the current item has been committed
+	segmentId          int
 	lastCompleted      float64 // end time of the last completed segment we forwarded
 }
 
@@ -187,9 +188,24 @@ func (c *Client) onTranscription(_ string, segments []whisperlive.Segment) {
 
 	c.mu.Lock()
 
-	var lastSegment *whisperlive.Segment = &segments[len(segments)-1]
+	newSegmentId := len(segments) - 1
+	var lastSegment *whisperlive.Segment = &segments[newSegmentId]
 	lastSegment.Text = strings.TrimSpace(lastSegment.Text)
-	if !lastSegment.Completed {
+
+	// If the backend starts with a new segment, commit the old one before moving on.
+	if c.segmentId != newSegmentId {
+		// commit and start with a new segment
+		completedText := segments[c.segmentId].Text
+		fmt.Printf("[DEBUG] New segment received, committing  %q\n", completedText)
+		itemID := c.currentOrNewItemLocked()
+		outbound = append(outbound,
+			messages.NewTranscriptionCompleted(itemID, 0, completedText))
+		c.emitted = ""
+		c.emittedIsCommitted = false
+		c.segmentId = newSegmentId
+	}
+
+	if !lastSegment.Completed && lastSegment.Text != c.emitted {
 		// append to current emitted text and send a delta if it has changed
 		c.emittedIsCommitted = false
 		fmt.Printf("[DEBUG]: last segment not completed, emitted=%q, lastSegment.Text=%q\n", c.emitted, lastSegment.Text)
