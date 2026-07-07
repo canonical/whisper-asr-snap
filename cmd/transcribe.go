@@ -53,57 +53,35 @@ func (cmd *transcribeCommand) run(cobraCmd *cobra.Command, _ []string) error {
 		return errors.New("host and port are required")
 	}
 
-	cfg := whisperlive.TranscriptionClientConfig{
-		ClientConfig: whisperlive.ClientConfig{
-			Host:             ptr(cmd.host),
-			Port:             ptr(cmd.port),
-			Lang:             ptr(cmd.lang),
-			Model:            ptr(cmd.model),
-			LogTranscription: ptr(true),
-		},
-	}
-
-	transcriptionClient, err := whisperlive.NewTranscriptionClient(cfg)
-	if err != nil {
-		return fmt.Errorf("creating transcription client: %w", err)
-	}
-	defer func() {
-		_ = transcriptionClient.Tee.CloseClient()
-	}()
-
 	timeout := time.Duration(cmd.timeoutSec) * time.Second
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 
+	cfg := whisperlive.Config{
+		Host:             cmd.host,
+		Port:             cmd.port,
+		Lang:             cmd.lang,
+		Model:            cmd.model,
+		LogTranscription: true,
+	}
+
 	fmt.Fprintf(cobraCmd.OutOrStdout(), "connecting to whisper live at %s:%d\n", cmd.host, cmd.port)
-	if err := transcriptionClient.Tee.WaitForServerReady(ctx); err != nil {
+	client, err := whisperlive.Dial(ctx, cfg)
+	if err != nil {
+		return fmt.Errorf("connecting to whisper live: %w", err)
+	}
+	defer client.Close()
+
+	if err := client.WaitReady(ctx); err != nil {
 		return fmt.Errorf("waiting for server ready: %w", err)
 	}
 
 	fmt.Fprintf(cobraCmd.OutOrStdout(), "streaming audio file: %s\n", cmd.audioPath)
-	if err := transcriptionClient.Tee.ProcessHLSStream(ctx, cmd.audioPath); err != nil {
+	if err := client.TranscribeFile(ctx, cmd.audioPath); err != nil {
 		return fmt.Errorf("processing audio stream: %w", err)
 	}
 
-	segments := transcriptionClient.Client.Transcript()
-	parts := make([]string, 0, len(segments)+1)
-	for _, seg := range segments {
-		text := strings.TrimSpace(seg.Text)
-		if text != "" {
-			parts = append(parts, text)
-		}
-	}
-
-	// Append the trailing in-progress segment so the final line of speech is not
-	// lost when the backend disconnects before marking it completed.
-	if last := transcriptionClient.Client.LastSegment(); last != nil {
-		text := strings.TrimSpace(last.Text)
-		if text != "" && (len(parts) == 0 || parts[len(parts)-1] != text) {
-			parts = append(parts, text)
-		}
-	}
-
-	finalText := strings.TrimSpace(strings.Join(parts, " "))
+	finalText := client.FinalTranscript()
 	if finalText == "" {
 		fmt.Fprintln(cobraCmd.OutOrStdout(), "transcription completed but no text was returned")
 	} else {
@@ -111,8 +89,4 @@ func (cmd *transcribeCommand) run(cobraCmd *cobra.Command, _ []string) error {
 	}
 
 	return nil
-}
-
-func ptr[T any](v T) *T {
-	return &v
 }
