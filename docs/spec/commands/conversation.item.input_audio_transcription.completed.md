@@ -21,8 +21,6 @@ Server-to-client terminal event for a committed audio chunk. Contains the finali
 ```json
 {
   "type": "conversation.item.input_audio_transcription.completed",
-  "item_id": "string",
-  "content_index": 0,
   "transcript": "full final text",
   "logprobs": [
     {
@@ -37,8 +35,6 @@ Server-to-client terminal event for a committed audio chunk. Contains the finali
 ## Required Fields
 
 - `type`
-- `item_id`
-- `content_index`
 - `transcript`
 
 ## Optional Fields
@@ -49,7 +45,6 @@ Server-to-client terminal event for a committed audio chunk. Contains the finali
 
 - Represents the final consolidated transcript for the committed chunk.
 - Supersedes any intermediate aggregation built from delta events.
-- Must be correlated with previous deltas using `item_id` + `content_index`.
 
 ## Client Handling Strategy
 

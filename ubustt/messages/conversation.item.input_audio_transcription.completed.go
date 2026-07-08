@@ -8,10 +8,8 @@ type CompletedLogprob struct {
 
 type ConversationItemInputAudioTranscriptionCompleted struct {
 	MessageBase
-	ItemID       string             `json:"item_id"`
-	ContentIndex int                `json:"content_index"`
-	Transcript   string             `json:"transcript"`
-	Logprobs     []CompletedLogprob `json:"logprobs,omitempty"`
+	Transcript string             `json:"transcript"`
+	Logprobs   []CompletedLogprob `json:"logprobs,omitempty"`
 }
 
 func (m *ConversationItemInputAudioTranscriptionCompleted) New() {
@@ -20,11 +18,9 @@ func (m *ConversationItemInputAudioTranscriptionCompleted) New() {
 
 // NewTranscriptionCompleted builds the terminal event carrying the finalized
 // transcript for a committed audio segment.
-func NewTranscriptionCompleted(itemID string, contentIndex int, transcript string) *ConversationItemInputAudioTranscriptionCompleted {
+func NewTranscriptionCompleted(transcript string) *ConversationItemInputAudioTranscriptionCompleted {
 	m := &ConversationItemInputAudioTranscriptionCompleted{
-		ItemID:       itemID,
-		ContentIndex: contentIndex,
-		Transcript:   transcript,
+		Transcript: transcript,
 	}
 	m.New()
 	return m

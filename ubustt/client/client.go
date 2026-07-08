@@ -32,9 +32,7 @@ type Client struct {
 	mu                   sync.Mutex
 	modelLoaded          bool // true if the backend has loaded a model
 	session              *messages.SessionUpdateSession
-	itemSeq              int    // monotonic counter used to mint item ids
-	currentItemID        string // open (in-progress) transcription item, if any
-	audioBufferFinalized bool   // true if the user has sent InputAudioBufferCommit
+	audioBufferFinalized bool // true if the user has sent InputAudioBufferCommit
 }
 
 // NewClient creates a Client bound to a user websocket connection.
@@ -209,10 +207,7 @@ func (c *Client) handleInputAudioBufferCommit(_ *messages.InputAudioBufferCommit
 // onDelta is called by the backend whenever a new text fragment is available
 // for the current partial segment.
 func (c *Client) onDelta(delta string) {
-	c.mu.Lock()
-	itemID := c.currentOrNewItemLocked()
-	c.mu.Unlock()
-	if err := c.send(messages.NewTranscriptionDelta(itemID, 0, delta)); err != nil {
+	if err := c.send(messages.NewTranscriptionDelta(delta)); err != nil {
 		log.Printf("[WARN]: sending transcription delta: %v", err)
 	}
 }
@@ -220,10 +215,7 @@ func (c *Client) onDelta(delta string) {
 // onCommit is called by the backend when a segment is finalized. An empty text
 // signals a partial reset (the backend revised the in-progress text).
 func (c *Client) onCommit(text string) {
-	c.mu.Lock()
-	itemID := c.currentOrNewItemLocked()
-	c.mu.Unlock()
-	if err := c.send(messages.NewTranscriptionCompleted(itemID, 0, text)); err != nil {
+	if err := c.send(messages.NewTranscriptionCompleted(text)); err != nil {
 		log.Printf("[WARN]: sending transcription completed: %v", err)
 	}
 
@@ -258,16 +250,6 @@ func (c *Client) onModelUnloaded() {
 	if err != nil {
 		log.Printf("[WARN]: sending model unloaded: %v", err)
 	}
-}
-
-// currentOrNewItemLocked returns the id of the open transcription item, minting
-// a new one if none is open. Callers must hold c.mu.
-func (c *Client) currentOrNewItemLocked() string {
-	if c.currentItemID == "" {
-		c.itemSeq++
-		c.currentItemID = fmt.Sprintf("item_%d", c.itemSeq)
-	}
-	return c.currentItemID
 }
 
 // send serializes an outbound message and writes it to the user websocket.

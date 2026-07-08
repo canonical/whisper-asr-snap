@@ -21,8 +21,6 @@ Server-to-client streaming event carrying incremental transcription text for in-
 ```json
 {
   "type": "conversation.item.input_audio_transcription.delta",
-  "item_id": "string",
-  "content_index": 0,
   "delta": "partial transcript text",
   "logprobs": [
     {
@@ -37,8 +35,6 @@ Server-to-client streaming event carrying incremental transcription text for in-
 ## Required Fields
 
 - `type`
-- `item_id`
-- `content_index`
 - `delta`
 
 ## Optional Fields
@@ -49,7 +45,6 @@ Server-to-client streaming event carrying incremental transcription text for in-
 
 - `delta` is an incremental text fragment, not necessarily token-aligned.
 - Multiple delta events are concatenated in arrival order to form a candidate transcript.
-- `item_id` and `content_index` allow correlation across multi-item/multi-content workflows.
 
 ## Logprobs Structure
 
@@ -63,7 +58,6 @@ Each logprob entry includes:
 
 ## Client Handling Strategy
 
-- Maintain per-`item_id` buffer keyed by `content_index`.
 - Append each `delta` as received.
 - Optionally render live transcript updates in UI/consumer pipeline.
 - Do not treat deltas as final until completed event arrives.

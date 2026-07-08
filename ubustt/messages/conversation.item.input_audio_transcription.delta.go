@@ -8,10 +8,8 @@ type DeltaLogprob struct {
 
 type ConversationItemInputAudioTranscriptionDelta struct {
 	MessageBase
-	ItemID       string         `json:"item_id"`
-	ContentIndex int            `json:"content_index"`
-	Delta        string         `json:"delta"`
-	Logprobs     []DeltaLogprob `json:"logprobs,omitempty"`
+	Delta    string         `json:"delta"`
+	Logprobs []DeltaLogprob `json:"logprobs,omitempty"`
 }
 
 func (m *ConversationItemInputAudioTranscriptionDelta) New() {
@@ -19,11 +17,9 @@ func (m *ConversationItemInputAudioTranscriptionDelta) New() {
 }
 
 // NewTranscriptionDelta builds an incremental transcript fragment event.
-func NewTranscriptionDelta(itemID string, contentIndex int, delta string) *ConversationItemInputAudioTranscriptionDelta {
+func NewTranscriptionDelta(delta string) *ConversationItemInputAudioTranscriptionDelta {
 	m := &ConversationItemInputAudioTranscriptionDelta{
-		ItemID:       itemID,
-		ContentIndex: contentIndex,
-		Delta:        delta,
+		Delta: delta,
 	}
 	m.New()
 	return m

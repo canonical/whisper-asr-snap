@@ -215,9 +215,7 @@ func TestFromJsonInputAudioBufferCommit(t *testing.T) {
 
 func TestFromJsonTranscriptionDelta(t *testing.T) {
 	want := &ConversationItemInputAudioTranscriptionDelta{
-		ItemID:       "item-1",
-		ContentIndex: 2,
-		Delta:        "hello",
+		Delta: "hello",
 	}
 	want.New()
 
@@ -236,12 +234,6 @@ func TestFromJsonTranscriptionDelta(t *testing.T) {
 	if got.Type != "conversation.item.input_audio_transcription.delta" {
 		t.Errorf("Type = %q", got.Type)
 	}
-	if got.ItemID != "item-1" {
-		t.Errorf("ItemID = %q, want %q", got.ItemID, "item-1")
-	}
-	if got.ContentIndex != 2 {
-		t.Errorf("ContentIndex = %d, want 2", got.ContentIndex)
-	}
 	if got.Delta != "hello" {
 		t.Errorf("Delta = %q, want %q", got.Delta, "hello")
 	}
@@ -249,9 +241,7 @@ func TestFromJsonTranscriptionDelta(t *testing.T) {
 
 func TestFromJsonTranscriptionCompleted(t *testing.T) {
 	want := &ConversationItemInputAudioTranscriptionCompleted{
-		ItemID:       "item-2",
-		ContentIndex: 0,
-		Transcript:   "the full transcript",
+		Transcript: "the full transcript",
 	}
 	want.New()
 
@@ -379,15 +369,9 @@ func TestNewSessionUpdated(t *testing.T) {
 }
 
 func TestNewTranscriptionDelta(t *testing.T) {
-	m := NewTranscriptionDelta("item-abc", 3, "partial text")
+	m := NewTranscriptionDelta("partial text")
 	if m.Type != "conversation.item.input_audio_transcription.delta" {
 		t.Errorf("Type = %q", m.Type)
-	}
-	if m.ItemID != "item-abc" {
-		t.Errorf("ItemID = %q", m.ItemID)
-	}
-	if m.ContentIndex != 3 {
-		t.Errorf("ContentIndex = %d, want 3", m.ContentIndex)
 	}
 	if m.Delta != "partial text" {
 		t.Errorf("Delta = %q", m.Delta)
@@ -395,15 +379,9 @@ func TestNewTranscriptionDelta(t *testing.T) {
 }
 
 func TestNewTranscriptionCompleted(t *testing.T) {
-	m := NewTranscriptionCompleted("item-xyz", 1, "final text")
+	m := NewTranscriptionCompleted("final text")
 	if m.Type != "conversation.item.input_audio_transcription.completed" {
 		t.Errorf("Type = %q", m.Type)
-	}
-	if m.ItemID != "item-xyz" {
-		t.Errorf("ItemID = %q", m.ItemID)
-	}
-	if m.ContentIndex != 1 {
-		t.Errorf("ContentIndex = %d, want 1", m.ContentIndex)
 	}
 	if m.Transcript != "final text" {
 		t.Errorf("Transcript = %q", m.Transcript)
