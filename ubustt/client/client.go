@@ -150,6 +150,14 @@ func (c *Client) handleInputAudioBufferAppend(m *messages.InputAudioBufferAppend
 	if len(pcm) == 0 {
 		return nil
 	}
+	if c.audioBufferFinalized {
+		c.send(messages.NewError(
+			messages.ErrorTypeServer,
+			messages.ErrorCodeServerError,
+			"appending to a finalized audio buffer is not supported",
+		))
+		return fmt.Errorf("appending to a finalized audio buffer")
+	}
 	if c.backend == nil {
 		c.send(messages.NewError(
 			messages.ErrorTypeInvalidRequest,
@@ -184,6 +192,14 @@ func (c *Client) handleInputAudioBufferCommit(_ *messages.InputAudioBufferCommit
 			"backend session not started",
 		))
 		return fmt.Errorf("backend session not started")
+	}
+	if c.audioBufferFinalized {
+		c.send(messages.NewError(
+			messages.ErrorTypeServer,
+			messages.ErrorCodeServerError,
+			"committing a finalized audio buffer is not supported",
+		))
+		return fmt.Errorf("committing a finalized audio buffer")
 	}
 	if !c.modelLoaded {
 		c.send(messages.NewError(
