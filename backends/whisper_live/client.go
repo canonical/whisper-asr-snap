@@ -18,6 +18,7 @@ import (
 	"math"
 	"net/url"
 	"os"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -510,6 +511,9 @@ func asFloat64(v any) (float64, bool) {
 	case json.Number:
 		n, err := t.Float64()
 		return n, err == nil
+	case string:
+		f, err := strconv.ParseFloat(t, 64)
+		return f, err == nil
 	}
 	return 0, false
 }
