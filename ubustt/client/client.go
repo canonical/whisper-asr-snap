@@ -136,43 +136,47 @@ func (c *Client) handleSessionUpdate(m *messages.SessionUpdate) error {
 	return c.send(messages.NewSessionUpdated(session))
 }
 
+// Sends an error message on the user connection.
+// The error is also returned to the caller for convenience.
+func (c *Client) sendError(errorType string, errorCode string, message string) error {
+	c.send(messages.NewError(errorType, errorCode, message))
+	return fmt.Errorf("%s", message)
+}
+
 // handleInputAudioBufferAppend decodes a base64 PCM16 chunk and forwards it to
 // the WhisperLive backend.
 func (c *Client) handleInputAudioBufferAppend(m *messages.InputAudioBufferAppend) error {
 	pcm, err := base64.StdEncoding.DecodeString(m.Audio)
 	if err != nil {
-		return c.send(messages.NewError(
+		return c.sendError(
 			messages.ErrorTypeInvalidRequest,
 			messages.ErrorCodeInvalidParameter,
 			"audio is not valid base64",
-		))
+		)
 	}
 	if len(pcm) == 0 {
 		return nil
 	}
 	if c.audioBufferFinalized {
-		c.send(messages.NewError(
+		return c.sendError(
 			messages.ErrorTypeServer,
 			messages.ErrorCodeServerError,
 			"appending to a finalized audio buffer is not supported",
-		))
-		return fmt.Errorf("appending to a finalized audio buffer")
+		)
 	}
 	if c.backend == nil {
-		c.send(messages.NewError(
+		return c.sendError(
 			messages.ErrorTypeInvalidRequest,
 			messages.ErrorCodeNoModelError,
 			"backend session not started",
-		))
-		return fmt.Errorf("backend session not started")
+		)
 	}
 	if !c.modelLoaded {
-		c.send(messages.NewError(
+		return c.sendError(
 			messages.ErrorTypeInvalidRequest,
 			messages.ErrorCodeNoModelError,
 			"no model loaded",
-		))
-		return fmt.Errorf("no model loaded")
+		)
 	}
 	if err := c.backend.SendPCM16(pcm); err != nil {
 		return fmt.Errorf("forwarding audio to backend: %w", err)
@@ -186,28 +190,25 @@ func (c *Client) handleInputAudioBufferAppend(m *messages.InputAudioBufferAppend
 // close — at which point watchBackend tears down the user connection.
 func (c *Client) handleInputAudioBufferCommit(_ *messages.InputAudioBufferCommit) error {
 	if c.backend == nil {
-		c.send(messages.NewError(
+		return c.sendError(
 			messages.ErrorTypeInvalidRequest,
 			messages.ErrorCodeNoModelError,
 			"backend session not started",
-		))
-		return fmt.Errorf("backend session not started")
+		)
 	}
 	if c.audioBufferFinalized {
-		c.send(messages.NewError(
+		return c.sendError(
 			messages.ErrorTypeServer,
 			messages.ErrorCodeServerError,
 			"committing a finalized audio buffer is not supported",
-		))
-		return fmt.Errorf("committing a finalized audio buffer")
+		)
 	}
 	if !c.modelLoaded {
-		c.send(messages.NewError(
+		return c.sendError(
 			messages.ErrorTypeInvalidRequest,
 			messages.ErrorCodeNoModelError,
 			"no model loaded",
-		))
-		return fmt.Errorf("no model loaded")
+		)
 	}
 	c.mu.Lock()
 	c.audioBufferFinalized = true
