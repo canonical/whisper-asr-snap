@@ -12,6 +12,7 @@ import (
 
 	"ubustt-proxy/backends"
 	"ubustt-proxy/ubustt/client"
+	"ubustt-proxy/ubustt/messages"
 
 	"github.com/gorilla/websocket"
 )
@@ -134,6 +135,11 @@ func (s *WebSocketServer) HandleWebSocket(w http.ResponseWriter, r *http.Request
 	// audio from the user.
 	if err := c.Start(r.Context()); err != nil {
 		fmt.Printf("starting client session: %v\n", err)
+		_ = c.SendError(
+			messages.ErrorTypeServer,
+			messages.ErrorCodeServerError,
+			"failed to start session",
+		)
 		return
 	}
 
@@ -146,10 +152,16 @@ func (s *WebSocketServer) HandleWebSocket(w http.ResponseWriter, r *http.Request
 
 		switch messageType {
 		case websocket.BinaryMessage:
-			fmt.Printf("Received unsupported binary message of %d bytes\n", len(payload))
+			// Send error for unsupported binary frames
+			_ = c.SendError(
+				messages.ErrorTypeInvalidRequest,
+				messages.ErrorCodeInvalidParameter,
+				"binary messages are unsupported",
+			)
+
 		case websocket.TextMessage:
 			if err := c.HandleMessage(payload); err != nil {
-				fmt.Printf("Error handling message: %v\n", err)
+				fmt.Fprintf(os.Stderr, "Error handling message: %v\n", err)
 			}
 		}
 	}

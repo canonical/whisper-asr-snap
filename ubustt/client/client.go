@@ -108,7 +108,11 @@ func (c *Client) Close() error {
 func (c *Client) HandleMessage(payload []byte) error {
 	msg, err := messages.FromJson(payload)
 	if err != nil {
-		return fmt.Errorf("decoding message: %w", err)
+		return c.SendError(
+			messages.ErrorTypeInvalidRequest,
+			messages.ErrorCodeInvalidParameter,
+			fmt.Sprintf("decoding message: %s", err),
+		)
 	}
 
 	switch m := msg.(type) {
@@ -119,7 +123,11 @@ func (c *Client) HandleMessage(payload []byte) error {
 	case *messages.InputAudioBufferCommit:
 		return c.handleInputAudioBufferCommit(m)
 	default:
-		return fmt.Errorf("unexpected inbound message type: %T", m)
+		return c.SendError(
+			messages.ErrorTypeInvalidRequest,
+			messages.ErrorCodeInvalidParameter,
+			fmt.Sprintf("unexpected message type: %T", m),
+		)
 	}
 }
 
@@ -138,7 +146,7 @@ func (c *Client) handleSessionUpdate(m *messages.SessionUpdate) error {
 
 // Sends an error message on the user connection.
 // The error is also returned to the caller for convenience.
-func (c *Client) sendError(errorType string, errorCode string, message string) error {
+func (c *Client) SendError(errorType string, errorCode string, message string) error {
 	c.send(messages.NewError(errorType, errorCode, message))
 	return fmt.Errorf("%s", message)
 }
@@ -148,7 +156,7 @@ func (c *Client) sendError(errorType string, errorCode string, message string) e
 func (c *Client) handleInputAudioBufferAppend(m *messages.InputAudioBufferAppend) error {
 	pcm, err := base64.StdEncoding.DecodeString(m.Audio)
 	if err != nil {
-		return c.sendError(
+		return c.SendError(
 			messages.ErrorTypeInvalidRequest,
 			messages.ErrorCodeInvalidParameter,
 			"audio is not valid base64",
@@ -158,21 +166,21 @@ func (c *Client) handleInputAudioBufferAppend(m *messages.InputAudioBufferAppend
 		return nil
 	}
 	if c.audioBufferFinalized {
-		return c.sendError(
+		return c.SendError(
 			messages.ErrorTypeServer,
 			messages.ErrorCodeServerError,
 			"appending to a finalized audio buffer is not supported",
 		)
 	}
 	if c.backend == nil {
-		return c.sendError(
+		return c.SendError(
 			messages.ErrorTypeInvalidRequest,
 			messages.ErrorCodeNoModelError,
 			"backend session not started",
 		)
 	}
 	if !c.modelLoaded {
-		return c.sendError(
+		return c.SendError(
 			messages.ErrorTypeInvalidRequest,
 			messages.ErrorCodeNoModelError,
 			"no model loaded",
@@ -190,21 +198,21 @@ func (c *Client) handleInputAudioBufferAppend(m *messages.InputAudioBufferAppend
 // close — at which point watchBackend tears down the user connection.
 func (c *Client) handleInputAudioBufferCommit(_ *messages.InputAudioBufferCommit) error {
 	if c.backend == nil {
-		return c.sendError(
+		return c.SendError(
 			messages.ErrorTypeInvalidRequest,
 			messages.ErrorCodeNoModelError,
 			"backend session not started",
 		)
 	}
 	if c.audioBufferFinalized {
-		return c.sendError(
+		return c.SendError(
 			messages.ErrorTypeServer,
 			messages.ErrorCodeServerError,
 			"committing a finalized audio buffer is not supported",
 		)
 	}
 	if !c.modelLoaded {
-		return c.sendError(
+		return c.SendError(
 			messages.ErrorTypeInvalidRequest,
 			messages.ErrorCodeNoModelError,
 			"no model loaded",
