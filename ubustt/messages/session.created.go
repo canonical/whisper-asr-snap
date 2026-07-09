@@ -21,7 +21,7 @@ type SessionCreatedAudio struct {
 type SessionCreatedSession struct {
 	Type         string              `json:"type"`
 	Instructions string              `json:"instructions,omitempty"`
-	Prompt       *string             `json:"prompt"`
+	Prompt       *string             `json:"prompt,omitempty"`
 	Audio        SessionCreatedAudio `json:"audio"`
 	Include      []string            `json:"include,omitempty"`
 }

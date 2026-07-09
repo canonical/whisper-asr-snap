@@ -92,15 +92,15 @@ func TestFromJsonSessionUpdate(t *testing.T) {
 	prompt := "my-prompt"
 	want := &SessionUpdate{
 		Session: SessionUpdateSession{
-			Type:         "realtime",
-			Instructions: "do things",
+			Type:         new("realtime"),
+			Instructions: new("do things"),
 			Prompt:       &prompt,
-			Audio: SessionUpdateAudio{
-				Input: SessionUpdateAudioInput{
-					Format: SessionUpdateFormat{Rate: 16000},
-					Transcription: SessionUpdateTranscription{
-						Model:    "large",
-						Language: "fr",
+			Audio: &SessionUpdateAudio{
+				Input: &SessionUpdateAudioInput{
+					Format: &SessionUpdateFormat{Rate: 16000},
+					Transcription: &SessionUpdateTranscription{
+						Model:    new("large"),
+						Language: new("fr"),
 					},
 				},
 			},
@@ -123,8 +123,8 @@ func TestFromJsonSessionUpdate(t *testing.T) {
 	if got.Type != "session.update" {
 		t.Errorf("Type = %q, want %q", got.Type, "session.update")
 	}
-	if got.Session.Audio.Input.Transcription.Language != "fr" {
-		t.Errorf("Language = %q, want %q", got.Session.Audio.Input.Transcription.Language, "fr")
+	if got.Session.Audio.Input.Transcription.Language == nil || *got.Session.Audio.Input.Transcription.Language != "fr" {
+		t.Errorf("Language = %v, want %q", got.Session.Audio.Input.Transcription.Language, "fr")
 	}
 	if got.Session.Prompt == nil || *got.Session.Prompt != prompt {
 		t.Errorf("Prompt = %v, want %q", got.Session.Prompt, prompt)
@@ -333,15 +333,15 @@ func TestNewSessionCreated(t *testing.T) {
 func TestNewSessionUpdated(t *testing.T) {
 	prompt := "p"
 	src := SessionUpdateSession{
-		Type:         "realtime",
-		Instructions: "inst",
+		Type:         new("realtime"),
+		Instructions: new("inst"),
 		Prompt:       &prompt,
-		Audio: SessionUpdateAudio{
-			Input: SessionUpdateAudioInput{
-				Format: SessionUpdateFormat{Rate: 8000},
-				Transcription: SessionUpdateTranscription{
-					Model:    "tiny",
-					Language: "ja",
+		Audio: &SessionUpdateAudio{
+			Input: &SessionUpdateAudioInput{
+				Format: &SessionUpdateFormat{Rate: 8000},
+				Transcription: &SessionUpdateTranscription{
+					Model:    new("tiny"),
+					Language: new("ja"),
 				},
 			},
 		},

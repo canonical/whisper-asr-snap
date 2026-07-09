@@ -292,15 +292,15 @@ func (c *Client) send(m messages.Message) error {
 // later session.update patches merge against a known baseline.
 func sessionFromCreated(m *messages.SessionCreated) messages.SessionUpdateSession {
 	return messages.SessionUpdateSession{
-		Type:         m.Session.Type,
-		Instructions: m.Session.Instructions,
+		Type:         &m.Session.Type,
+		Instructions: &m.Session.Instructions,
 		Prompt:       m.Session.Prompt,
-		Audio: messages.SessionUpdateAudio{
-			Input: messages.SessionUpdateAudioInput{
-				Format: messages.SessionUpdateFormat{Rate: m.Session.Audio.Input.Format.Rate},
-				Transcription: messages.SessionUpdateTranscription{
-					Model:    m.Session.Audio.Input.Transcription.Model,
-					Language: m.Session.Audio.Input.Transcription.Language,
+		Audio: &messages.SessionUpdateAudio{
+			Input: &messages.SessionUpdateAudioInput{
+				Format: &messages.SessionUpdateFormat{Rate: m.Session.Audio.Input.Format.Rate},
+				Transcription: &messages.SessionUpdateTranscription{
+					Model:    &m.Session.Audio.Input.Transcription.Model,
+					Language: &m.Session.Audio.Input.Transcription.Language,
 				},
 			},
 		},

@@ -5,25 +5,25 @@ type SessionUpdateFormat struct {
 }
 
 type SessionUpdateTranscription struct {
-	Model    string `json:"model,omitempty"`
-	Language string `json:"language,omitempty"`
+	Model    *string `json:"model,omitempty"`
+	Language *string `json:"language,omitempty"`
 }
 
 type SessionUpdateAudioInput struct {
-	Format        SessionUpdateFormat        `json:"format"`
-	Transcription SessionUpdateTranscription `json:"transcription"`
+	Format        *SessionUpdateFormat        `json:"format,omitempty"`
+	Transcription *SessionUpdateTranscription `json:"transcription,omitempty"`
 }
 
 type SessionUpdateAudio struct {
-	Input SessionUpdateAudioInput `json:"input"`
+	Input *SessionUpdateAudioInput `json:"input,omitempty"`
 }
 
 type SessionUpdateSession struct {
-	Type         string             `json:"type"`
-	Instructions string             `json:"instructions,omitempty"`
-	Prompt       *string            `json:"prompt,omitempty"`
-	Audio        SessionUpdateAudio `json:"audio"`
-	Include      []string           `json:"include,omitempty"`
+	Type         *string             `json:"type"`
+	Instructions *string             `json:"instructions,omitempty"`
+	Prompt       *string             `json:"prompt,omitempty"`
+	Audio        *SessionUpdateAudio `json:"audio,omitempty"`
+	Include      []string            `json:"include,omitempty"`
 }
 
 type SessionUpdate struct {

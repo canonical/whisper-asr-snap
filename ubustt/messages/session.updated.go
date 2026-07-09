@@ -21,7 +21,7 @@ type SessionUpdatedAudio struct {
 type SessionUpdatedSession struct {
 	Type         string              `json:"type"`
 	Instructions string              `json:"instructions,omitempty"`
-	Prompt       *string             `json:"prompt"`
+	Prompt       *string             `json:"prompt,omitempty"`
 	Audio        SessionUpdatedAudio `json:"audio"`
 	Include      []string            `json:"include,omitempty"`
 }
@@ -40,15 +40,15 @@ func (m *SessionUpdated) New() {
 func NewSessionUpdated(s SessionUpdateSession) *SessionUpdated {
 	m := &SessionUpdated{
 		Session: SessionUpdatedSession{
-			Type:         s.Type,
-			Instructions: s.Instructions,
+			Type:         *s.Type,
+			Instructions: *s.Instructions,
 			Prompt:       s.Prompt,
 			Audio: SessionUpdatedAudio{
 				Input: SessionUpdatedAudioInput{
 					Format: SessionUpdatedFormat{Rate: s.Audio.Input.Format.Rate},
 					Transcription: SessionUpdatedTranscription{
-						Model:    s.Audio.Input.Transcription.Model,
-						Language: s.Audio.Input.Transcription.Language,
+						Model:    *s.Audio.Input.Transcription.Model,
+						Language: *s.Audio.Input.Transcription.Language,
 					},
 				},
 			},
