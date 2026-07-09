@@ -1,5 +1,10 @@
 package messages
 
+import (
+	"fmt"
+	"slices"
+)
+
 type SessionUpdateFormat struct {
 	Rate int `json:"rate"`
 }
@@ -33,4 +38,39 @@ type SessionUpdate struct {
 
 func (m *SessionUpdate) New() {
 	m.Type = "session.update"
+}
+
+func (m *SessionUpdate) Validate() error {
+	var allowedTypeValues = []string{"realtime"}
+	var allowedIncludeValues = []string{"item.input_audio_transcription.logprobs"}
+
+	if m.Session.Type != nil && !slices.Contains(allowedTypeValues, *m.Session.Type) {
+		return fmt.Errorf("invalid value for field \"type\": %q. Allowed values are: %v", *m.Session.Type, allowedTypeValues)
+	}
+
+	for _, includeItem := range m.Session.Include {
+		if !slices.Contains(allowedIncludeValues, includeItem) {
+			return fmt.Errorf("invalid value in \"include\": %q. Allowed values are: %v", includeItem, allowedIncludeValues)
+		}
+	}
+
+	if m.Session.Audio != nil {
+		if m.Session.Audio.Input == nil {
+			return fmt.Errorf("provided object \"audio\" has no value")
+		}
+
+		if m.Session.Audio.Input.Format != nil {
+			if m.Session.Audio.Input.Format.Rate <= 0 {
+				return fmt.Errorf("expected a positive integer in \"audio.input.format.rate\", got %d", m.Session.Audio.Input.Format.Rate)
+			}
+		}
+
+		if m.Session.Audio.Input.Transcription != nil {
+			if m.Session.Audio.Input.Transcription.Model == nil && m.Session.Audio.Input.Transcription.Language == nil {
+				return fmt.Errorf("provided object \"audio.input.transcription\" has no value")
+			}
+		}
+	}
+
+	return nil
 }

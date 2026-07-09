@@ -17,6 +17,12 @@ type Backend interface {
 	SendPCM16(pcm []byte) error
 	// Finalize signals the end of audio input and waits for the backend to flush.
 	Finalize(ctx context.Context) error
+	// ValidateSessionConfig checks if the given session config is valid for this backend.
+	ValidateSessionConfig(c SessionConfig) (bool, error)
+	// GetConfig returns the current session configuration of the backend.
+	GetConfig() *SessionConfig
+	// SetConfig applies a new session configuration to the backend. Depending on the backend implementation, this may reload the backend session.
+	SetConfig(c SessionConfig) error
 }
 
 type BackendCallbacks struct {
@@ -33,10 +39,13 @@ type BackendCallbacks struct {
 // Factory is a function that opens a new Backend session
 type Factory func(ctx context.Context, callbacks BackendCallbacks) (Backend, error)
 
-// SessionConfig holds the session metadata advertised to the user via
-// session.created.
 type SessionConfig struct {
-	Model      string
-	Lang       string
-	SampleRate int
+	Type         string
+	Instructions *string
+	Prompt       *string
+	Include      []string
+	Model        string
+	Lang         string
+	AudioFormat  string
+	SampleRate   int
 }

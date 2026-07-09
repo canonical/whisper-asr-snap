@@ -20,10 +20,9 @@ import (
 type Client struct {
 	Connection *websocket.Conn
 
-	sessionCfg backends.SessionConfig
-	factory    backends.Factory
-	backend    backends.Backend
-	ctx        context.Context // root context for the session lifetime
+	factory backends.Factory
+	backend backends.Backend
+	ctx     context.Context // root context for the session lifetime
 
 	writeMu sync.Mutex // serializes websocket writes to the user
 
@@ -31,13 +30,13 @@ type Client struct {
 
 	mu                   sync.Mutex
 	modelLoaded          bool // true if the backend has loaded a model
-	session              *messages.SessionUpdateSession
+	sessionStarted       bool // true if the user has sent any audio chunks
 	audioBufferFinalized bool // true if the user has sent InputAudioBufferCommit
 }
 
 // NewClient creates a Client bound to a user websocket connection.
-func NewClient(conn *websocket.Conn, sessionCfg backends.SessionConfig, factory backends.Factory) *Client {
-	return &Client{Connection: conn, sessionCfg: sessionCfg, factory: factory}
+func NewClient(conn *websocket.Conn, factory backends.Factory) *Client {
+	return &Client{Connection: conn, factory: factory}
 }
 
 // Start opens the backend session, waits until it is ready, and advertises the
@@ -62,16 +61,7 @@ func (c *Client) Start(ctx context.Context) error {
 		return fmt.Errorf("waiting for backend: %w", err)
 	}
 
-	rate := c.sessionCfg.SampleRate
-	if rate <= 0 {
-		rate = 16000
-	}
-	created := messages.NewSessionCreated(c.sessionCfg.Model, c.sessionCfg.Lang, rate)
-
-	c.mu.Lock()
-	session := sessionFromCreated(created)
-	c.session = &session
-	c.mu.Unlock()
+	created := messages.NewSessionCreated(c.backend.GetConfig())
 
 	if err := c.send(created); err != nil {
 		return fmt.Errorf("sending session.created: %w", err)
@@ -131,17 +121,151 @@ func (c *Client) HandleMessage(payload []byte) error {
 	}
 }
 
+func getMergedConfiguration(original *backends.SessionConfig, update *messages.SessionUpdate) backends.SessionConfig {
+	cfg := *original // Shallow copy
+
+	if update.Session.Type != nil {
+		cfg.Type = *update.Session.Type
+	}
+	if update.Session.Instructions != nil {
+		cfg.Instructions = update.Session.Instructions
+	}
+	if update.Session.Prompt != nil {
+		cfg.Prompt = update.Session.Prompt
+	}
+	if update.Session.Include != nil {
+		cfg.Include = update.Session.Include
+	}
+	if update.Session.Audio != nil && update.Session.Audio.Input != nil {
+		if update.Session.Audio.Input.Format != nil {
+			cfg.SampleRate = update.Session.Audio.Input.Format.Rate
+		}
+		if update.Session.Audio.Input.Transcription != nil {
+			if update.Session.Audio.Input.Transcription.Model != nil {
+				cfg.Model = *update.Session.Audio.Input.Transcription.Model
+			}
+			if update.Session.Audio.Input.Transcription.Language != nil {
+				cfg.Lang = *update.Session.Audio.Input.Transcription.Language
+			}
+		}
+	}
+
+	return cfg
+}
+
+///////////////func (c *Client) validateSessionUpdateAgainstBackend(m *messages.SessionUpdate) error {
+///////////////	// Validate audio format supported by the backend
+///////////////	if m.Session.Audio != nil && m.Session.Audio.Input != nil && m.Session.Audio.Input.Format != nil {
+///////////////		backendSupport, err := c.backend.IsAudioFormatSupported(m.Session.Audio.Input.Format.Rate)
+///////////////		if err != nil {
+///////////////			return c.SendError(
+///////////////				messages.ErrorTypeServer,
+///////////////				messages.ErrorCodeServerError,
+///////////////				fmt.Sprintf("checking audio format support: %s", err),
+///////////////			)
+///////////////		}
+///////////////		if !backendSupport {
+///////////////			return c.SendError(
+///////////////				messages.ErrorTypeInvalidRequest,
+///////////////				messages.ErrorCodeInvalidParameter,
+///////////////				"unsupported audio format",
+///////////////			)
+///////////////		}
+///////////////	}
+///////////////
+///////////////	// Validate model and language availability
+///////////////	if m.Session.Audio != nil && m.Session.Audio.Input != nil && m.Session.Audio.Input.Transcription != nil {
+///////////////		if m.Session.Audio.Input.Transcription.Model != nil {
+///////////////			modelAvailable, err := c.backend.IsModelAvailable(*m.Session.Audio.Input.Transcription.Model)
+///////////////			if err != nil {
+///////////////				return c.SendError(
+///////////////					messages.ErrorTypeServer,
+///////////////					messages.ErrorCodeServerError,
+///////////////					fmt.Sprintf("checking model availability: %s", err),
+///////////////				)
+///////////////			}
+///////////////			if !modelAvailable {
+///////////////				return c.SendError(
+///////////////					messages.ErrorTypeInvalidRequest,
+///////////////					messages.ErrorCodeInvalidParameter,
+///////////////					"unsupported model",
+///////////////				)
+///////////////			}
+///////////////		}
+///////////////
+///////////////		if m.Session.Audio.Input.Transcription.Language != nil {
+///////////////			languageAvailable, err := c.backend.IsLanguageAvailable(*m.Session.Audio.Input.Transcription.Language)
+///////////////			if err != nil {
+///////////////				return c.SendError(
+///////////////					messages.ErrorTypeServer,
+///////////////					messages.ErrorCodeServerError,
+///////////////					fmt.Sprintf("checking language support: %s", err),
+///////////////				)
+///////////////			}
+///////////////			if !languageAvailable {
+///////////////				return c.SendError(
+///////////////					messages.ErrorTypeInvalidRequest,
+///////////////					messages.ErrorCodeInvalidParameter,
+///////////////					"unsupported language",
+///////////////				)
+///////////////			}
+///////////////		}
+///////////////	}
+///////////////	return nil
+///////////////}
+
 // handleSessionUpdate merges the requested session patch and acknowledges it
 // with a session.updated event.
 func (c *Client) handleSessionUpdate(m *messages.SessionUpdate) error {
-	c.mu.Lock()
-	session := m.Session
-	c.session = &session
-	c.mu.Unlock()
+	// Validate request
+	if err := m.Validate(); err != nil {
+		return c.SendError(
+			messages.ErrorTypeInvalidRequest,
+			messages.ErrorCodeInvalidParameter,
+			fmt.Sprintf("invalid session update: %s", err),
+		)
+	}
 
-	// Note: changing model/language mid-stream would require reconnecting the
-	// backend; that is out of scope here, we only echo the accepted state.
-	return c.send(messages.NewSessionUpdated(session))
+	// Merge configurations
+	mergedConfig := getMergedConfiguration(c.backend.GetConfig(), m)
+
+	// Validate merged config against the backend
+	ok, err := c.backend.ValidateSessionConfig(mergedConfig)
+	if err != nil {
+		return c.SendError(
+			messages.ErrorTypeServer,
+			messages.ErrorCodeServerError,
+			fmt.Sprintf("validating session configuration: %s", err),
+		)
+	} else if !ok {
+		return c.SendError(
+			messages.ErrorTypeInvalidRequest,
+			messages.ErrorCodeInvalidParameter,
+			fmt.Sprintf("invalid session configuration: %s", err),
+		)
+	}
+
+	// Reject changes if currently transcribing
+	if c.sessionStarted {
+		return c.SendError(
+			messages.ErrorTypeInvalidRequest,
+			messages.ErrorCodeInvalidParameter,
+			"session updates are not allowed after audio has been sent",
+		)
+	}
+
+	// Apply the merged configuration to the backend
+	err = c.backend.SetConfig(mergedConfig)
+
+	if err != nil {
+		return c.SendError(
+			messages.ErrorTypeServer,
+			messages.ErrorCodeServerError,
+			fmt.Sprintf("setting backend config: %s", err),
+		)
+	}
+
+	return c.send(messages.NewSessionUpdated(c.backend.GetConfig()))
 }
 
 // Sends an error message on the user connection.
@@ -186,6 +310,11 @@ func (c *Client) handleInputAudioBufferAppend(m *messages.InputAudioBufferAppend
 			"no model loaded",
 		)
 	}
+
+	c.mu.Lock()
+	c.sessionStarted = true
+	c.mu.Unlock()
+
 	if err := c.backend.SendPCM16(pcm); err != nil {
 		return fmt.Errorf("forwarding audio to backend: %w", err)
 	}
@@ -293,7 +422,7 @@ func (c *Client) send(m messages.Message) error {
 func sessionFromCreated(m *messages.SessionCreated) messages.SessionUpdateSession {
 	return messages.SessionUpdateSession{
 		Type:         &m.Session.Type,
-		Instructions: &m.Session.Instructions,
+		Instructions: m.Session.Instructions,
 		Prompt:       m.Session.Prompt,
 		Audio: &messages.SessionUpdateAudio{
 			Input: &messages.SessionUpdateAudioInput{

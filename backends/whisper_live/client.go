@@ -91,6 +91,10 @@ type Client struct {
 	readyOnce sync.Once
 	closed    chan struct{} // closed once the read loop exits
 	closeOnce sync.Once
+	done      chan struct{} // closed once the client is permanently shut down (not during a reload)
+	doneOnce  sync.Once
+
+	reloading bool // true while reloadBackend is swapping the connection
 
 	writeMu sync.Mutex // serializes websocket writes
 
@@ -136,6 +140,7 @@ func Dial(ctx context.Context, cfg Config) (*Client, error) {
 		conn:         conn,
 		ready:        make(chan struct{}),
 		closed:       make(chan struct{}),
+		done:         make(chan struct{}),
 		lastActivity: time.Now(),
 	}
 
@@ -145,7 +150,7 @@ func Dial(ctx context.Context, cfg Config) (*Client, error) {
 	}
 
 	log.Printf("[INFO]: Opened connection to %s", u.String())
-	go c.readLoop()
+	go c.readLoop(c.closed)
 	return c, nil
 }
 
@@ -165,8 +170,9 @@ func (c *Client) WaitReady(ctx context.Context) error {
 	}
 }
 
-// Close tears down the websocket connection.
+// Close tears down the websocket connection permanently.
 func (c *Client) Close() error {
+	c.doneOnce.Do(func() { close(c.done) })
 	_ = c.conn.WriteControl(
 		websocket.CloseMessage,
 		websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""),
@@ -175,11 +181,11 @@ func (c *Client) Close() error {
 	return c.conn.Close()
 }
 
-// Done returns a channel that is closed once the backend read loop exits, i.e.
-// when the WhisperLive connection has closed (whether gracefully, on error, or
-// because Close was called).
+// Done returns a channel that is closed when the client is permanently shut
+// down. It is NOT closed during a reload — only when Close is called or the
+// backend connection drops unexpectedly.
 func (c *Client) Done() <-chan struct{} {
-	return c.closed
+	return c.done
 }
 
 // FinalTranscript returns the accumulated completed segments plus the trailing
@@ -211,8 +217,20 @@ func (c *Client) sendConfig() error {
 }
 
 // readLoop reads and dispatches server messages until the connection ends.
-func (c *Client) readLoop() {
-	defer c.closeOnce.Do(func() { close(c.closed) })
+// The closed channel must be the per-session channel that was current when this
+// goroutine was launched; it must not be read back from c.closed so that a
+// concurrent reloadBackend swap cannot redirect the close to the new session.
+func (c *Client) readLoop(closed chan struct{}) {
+	defer func() {
+		close(closed)
+		// Only signal permanent closure when this is not a planned reload.
+		c.mu.Lock()
+		reloading := c.reloading
+		c.mu.Unlock()
+		if !reloading {
+			c.doneOnce.Do(func() { close(c.done) })
+		}
+	}()
 
 	for {
 		msgType, payload, err := c.conn.ReadMessage()
@@ -523,4 +541,117 @@ func nilIfEmpty(s string) any {
 		return nil
 	}
 	return s
+}
+
+func (c *Client) GetConfig() *backends.SessionConfig {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	return &backends.SessionConfig{
+		Type:         "realtime",
+		Instructions: nil,
+		Prompt:       nil,
+		Include:      nil,
+		Model:        c.cfg.Model,
+		Lang:         c.cfg.Lang,
+		AudioFormat:  "pcm16",
+		SampleRate:   c.cfg.SampleRate,
+	}
+}
+
+func (c *Client) SetConfig(cfg backends.SessionConfig) error {
+	valid, err := c.ValidateSessionConfig(cfg)
+	if !valid {
+		return fmt.Errorf("invalid session config: %w", err)
+	}
+
+	c.mu.Lock()
+	c.cfg.Model = cfg.Model
+	c.cfg.Lang = cfg.Lang
+	c.cfg.SampleRate = cfg.SampleRate
+	c.mu.Unlock()
+
+	return c.reloadBackend()
+}
+
+func (c *Client) ValidateSessionConfig(cfg backends.SessionConfig) (bool, error) {
+	if cfg.SampleRate != 16000 {
+		return false, fmt.Errorf("unsupported sample rate: %d", cfg.SampleRate)
+	}
+
+	if cfg.AudioFormat != "pcm16" {
+		return false, fmt.Errorf("unsupported audio format: %s", cfg.AudioFormat)
+	}
+
+	//TODO: validate type, instructions, prompt, include, audio format
+	//TODO: validate model and lang against the selected model
+	return true, nil
+}
+
+func (c *Client) reloadBackend() error {
+	// Notify that the current model is being unloaded.
+	if c.cfg.Callbacks.OnModelUnloaded != nil {
+		c.cfg.Callbacks.OnModelUnloaded()
+	}
+
+	c.mu.Lock()
+	cfg := c.cfg
+	oldConn := c.conn
+	oldClosed := c.closed
+
+	// Signal that the upcoming read-loop exit is intentional so it does not
+	// close the permanent done channel.
+	c.reloading = true
+
+	// Swap in fresh per-session channels and reset transcript state.
+	c.closed = make(chan struct{})
+	c.closeOnce = sync.Once{}
+	c.ready = make(chan struct{})
+	c.readyOnce = sync.Once{}
+	c.transcript = nil
+	c.partial = nil
+	c.lastText = ""
+	c.lastLogged = ""
+	c.lastActivity = time.Now()
+	c.segmentID = 0
+	c.emitted = ""
+	c.emittedIsCommitted = false
+	c.recording = false
+	c.mu.Unlock()
+
+	// Close the old connection and wait for its read loop to exit so there is
+	// no race between the old goroutine and the new one over c.conn.
+	_ = oldConn.WriteControl(
+		websocket.CloseMessage,
+		websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""),
+		time.Now().Add(500*time.Millisecond),
+	)
+	_ = oldConn.Close()
+	<-oldClosed
+
+	// Dial the new connection.
+	scheme := "ws"
+	if cfg.UseWSS {
+		scheme = "wss"
+	}
+	u := url.URL{Scheme: scheme, Host: fmt.Sprintf("%s:%d", cfg.Host, cfg.Port)}
+	conn, _, err := websocket.DefaultDialer.DialContext(context.Background(), u.String(), nil)
+	if err != nil {
+		return fmt.Errorf("dial websocket: %w", err)
+	}
+
+	c.mu.Lock()
+	c.conn = conn
+	c.uid = fmt.Sprintf("%d-%d", time.Now().UnixNano(), os.Getpid())
+	c.reloading = false
+	c.mu.Unlock()
+
+	if err := c.sendConfig(); err != nil {
+		_ = conn.Close()
+		return fmt.Errorf("send config: %w", err)
+	}
+
+	log.Printf("[INFO]: Reopened connection to %s", u.String())
+	go c.readLoop(c.closed)
+	return nil
 }

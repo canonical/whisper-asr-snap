@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"strings"
 	"testing"
+	"ubustt-proxy/backends"
 )
 
 func TestFromJsonSessionCreated(t *testing.T) {
@@ -11,7 +12,7 @@ func TestFromJsonSessionCreated(t *testing.T) {
 	want := &SessionCreated{
 		Session: SessionCreatedSession{
 			Type:         "realtime",
-			Instructions: "instructions",
+			Instructions: new("instructions"),
 			Prompt:       &prompt,
 			Audio: SessionCreatedAudio{
 				Input: SessionCreatedAudioInput{
@@ -315,9 +316,25 @@ func TestToJson(t *testing.T) {
 }
 
 func TestNewSessionCreated(t *testing.T) {
-	m := NewSessionCreated("large", "es", 16000)
+	m := NewSessionCreated(&backends.SessionConfig{
+		Type:         "realtime",
+		Instructions: new("instructions"),
+		Prompt:       new("my-prompt"),
+		Model:        "large",
+		Lang:         "es",
+		SampleRate:   16000,
+	})
 	if m.Type != "session.created" {
 		t.Errorf("Type = %q, want %q", m.Type, "session.created")
+	}
+	if m.Session.Type != "realtime" {
+		t.Errorf("Session.Type = %q, want %q", m.Session.Type, "realtime")
+	}
+	if m.Session.Instructions == nil || *m.Session.Instructions != "instructions" {
+		t.Errorf("Session.Instructions = %v, want %q", m.Session.Instructions, "instructions")
+	}
+	if m.Session.Prompt == nil || *m.Session.Prompt != "my-prompt" {
+		t.Errorf("Session.Prompt = %v, want %q", m.Session.Prompt, "my-prompt")
 	}
 	if m.Session.Audio.Input.Transcription.Model != "large" {
 		t.Errorf("Model = %q, want %q", m.Session.Audio.Input.Transcription.Model, "large")
@@ -332,27 +349,21 @@ func TestNewSessionCreated(t *testing.T) {
 
 func TestNewSessionUpdated(t *testing.T) {
 	prompt := "p"
-	src := SessionUpdateSession{
-		Type:         new("realtime"),
+	src := backends.SessionConfig{
+		Type:         "realtime",
 		Instructions: new("inst"),
 		Prompt:       &prompt,
-		Audio: &SessionUpdateAudio{
-			Input: &SessionUpdateAudioInput{
-				Format: &SessionUpdateFormat{Rate: 8000},
-				Transcription: &SessionUpdateTranscription{
-					Model:    new("tiny"),
-					Language: new("ja"),
-				},
-			},
-		},
-		Include: []string{"logprobs"},
+		Model:        "tiny",
+		Lang:         "ja",
+		SampleRate:   8000,
+		Include:      []string{"logprobs"},
 	}
-	m := NewSessionUpdated(src)
+	m := NewSessionUpdated(&src)
 	if m.Type != "session.updated" {
 		t.Errorf("Type = %q, want %q", m.Type, "session.updated")
 	}
-	if m.Session.Instructions != "inst" {
-		t.Errorf("Instructions = %q, want %q", m.Session.Instructions, "inst")
+	if m.Session.Instructions == nil || *m.Session.Instructions != "inst" {
+		t.Errorf("Instructions = %v, want %q", m.Session.Instructions, "inst")
 	}
 	if m.Session.Prompt == nil || *m.Session.Prompt != "p" {
 		t.Errorf("Prompt = %v, want %q", m.Session.Prompt, "p")

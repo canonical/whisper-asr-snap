@@ -1,5 +1,7 @@
 package messages
 
+import "ubustt-proxy/backends"
+
 type SessionUpdatedFormat struct {
 	Rate int `json:"rate"`
 }
@@ -20,7 +22,7 @@ type SessionUpdatedAudio struct {
 
 type SessionUpdatedSession struct {
 	Type         string              `json:"type"`
-	Instructions string              `json:"instructions,omitempty"`
+	Instructions *string             `json:"instructions,omitempty"`
 	Prompt       *string             `json:"prompt,omitempty"`
 	Audio        SessionUpdatedAudio `json:"audio"`
 	Include      []string            `json:"include,omitempty"`
@@ -35,24 +37,22 @@ func (m *SessionUpdated) New() {
 	m.Type = "session.updated"
 }
 
-// NewSessionUpdated acknowledges an accepted session.update by echoing the
-// merged session state back to the client.
-func NewSessionUpdated(s SessionUpdateSession) *SessionUpdated {
+func NewSessionUpdated(cfg *backends.SessionConfig) *SessionUpdated {
 	m := &SessionUpdated{
 		Session: SessionUpdatedSession{
-			Type:         *s.Type,
-			Instructions: *s.Instructions,
-			Prompt:       s.Prompt,
+			Type:         cfg.Type,
+			Instructions: cfg.Instructions,
+			Prompt:       cfg.Prompt,
+			Include:      cfg.Include,
 			Audio: SessionUpdatedAudio{
 				Input: SessionUpdatedAudioInput{
-					Format: SessionUpdatedFormat{Rate: s.Audio.Input.Format.Rate},
+					Format: SessionUpdatedFormat{Rate: cfg.SampleRate},
 					Transcription: SessionUpdatedTranscription{
-						Model:    *s.Audio.Input.Transcription.Model,
-						Language: *s.Audio.Input.Transcription.Language,
+						Model:    cfg.Model,
+						Language: cfg.Lang,
 					},
 				},
 			},
-			Include: s.Include,
 		},
 	}
 	m.New()

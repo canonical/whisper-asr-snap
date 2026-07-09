@@ -1,5 +1,7 @@
 package messages
 
+import "ubustt-proxy/backends"
+
 type SessionCreatedFormat struct {
 	Rate int `json:"rate"`
 }
@@ -20,7 +22,7 @@ type SessionCreatedAudio struct {
 
 type SessionCreatedSession struct {
 	Type         string              `json:"type"`
-	Instructions string              `json:"instructions,omitempty"`
+	Instructions *string             `json:"instructions,omitempty"`
 	Prompt       *string             `json:"prompt,omitempty"`
 	Audio        SessionCreatedAudio `json:"audio"`
 	Include      []string            `json:"include,omitempty"`
@@ -35,18 +37,19 @@ func (m *SessionCreated) New() {
 	m.Type = "session.created"
 }
 
-// NewSessionCreated builds the default session advertised to a client right
-// after it connects. Values typically come from the active backend config.
-func NewSessionCreated(model, language string, rate int) *SessionCreated {
+func NewSessionCreated(cfg *backends.SessionConfig) *SessionCreated {
 	m := &SessionCreated{
 		Session: SessionCreatedSession{
-			Type: "realtime",
+			Type:         cfg.Type,
+			Instructions: cfg.Instructions,
+			Prompt:       cfg.Prompt,
+			Include:      cfg.Include,
 			Audio: SessionCreatedAudio{
 				Input: SessionCreatedAudioInput{
-					Format: SessionCreatedFormat{Rate: rate},
+					Format: SessionCreatedFormat{Rate: cfg.SampleRate},
 					Transcription: SessionCreatedTranscription{
-						Model:    model,
-						Language: language,
+						Model:    cfg.Model,
+						Language: cfg.Lang,
 					},
 				},
 			},

@@ -21,8 +21,7 @@ type WebSocketServer struct {
 	network string
 	address string
 
-	sessionCfg backends.SessionConfig
-	factory    backends.Factory
+	factory backends.Factory
 
 	upgrader websocket.Upgrader
 	httpSrv  *http.Server
@@ -51,7 +50,6 @@ func NewWebSocketServer(host string, port int, unixSocketPath string) *WebSocket
 // SetBackend configures the session metadata and the factory used to open a
 // backend session for each connecting user.
 func (s *WebSocketServer) SetBackend(cfg backends.SessionConfig, factory backends.Factory) {
-	s.sessionCfg = cfg
 	s.factory = factory
 }
 
@@ -128,7 +126,7 @@ func (s *WebSocketServer) HandleWebSocket(w http.ResponseWriter, r *http.Request
 	}
 	defer conn.Close()
 
-	c := client.NewClient(conn, s.sessionCfg, s.factory)
+	c := client.NewClient(conn, s.factory)
 	defer c.Close()
 
 	// Open the backend session and advertise session.created before accepting
