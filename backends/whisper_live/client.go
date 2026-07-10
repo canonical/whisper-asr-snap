@@ -60,7 +60,9 @@ type Config struct {
 	LogTranscription bool
 	OnTranscription  func(text string, segments []Segment)
 
-	Callbacks backends.BackendCallbacks
+	Callbacks        backends.BackendCallbacks
+	AllowedModels    []string
+	AllowedLanguages []string
 }
 
 func (c Config) withDefaults() Config {
@@ -600,7 +602,13 @@ func (c *Client) ValidateSessionConfig(cfg backends.SessionConfig) (bool, error)
 		}
 	}
 
-	//TODO: validate model and lang against the selected model
+	if !slices.Contains(c.cfg.AllowedModels, cfg.Model) {
+		return false, fmt.Errorf("model %q is not in allowed models: %v", cfg.Model, c.cfg.AllowedModels)
+	}
+	if !slices.Contains(c.cfg.AllowedLanguages, cfg.Lang) {
+		return false, fmt.Errorf("language %q is not in allowed languages: %v", cfg.Lang, c.cfg.AllowedLanguages)
+	}
+
 	return true, nil
 }
 

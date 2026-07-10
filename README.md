@@ -53,17 +53,20 @@ curl --unix-socket /tmp/ubustt-proxy.sock http://localhost/
 ### Backend configuration
 
 The server will reach a WhisperLive backend at its default address of `127.0.0.1:9090`. 
-This value can be changed by setting `--whisper-host` and `--whisper-port`.
+This value can be changed by setting `--whisper-host` and `--backend-port`.
 
-The default model and language can be changed by setting `--whisper-model` and `--whisper-lang`.
+The default model and language can be changed by setting `--model` and `--language`.
+To restrict which models and languages are allowed, use `--allowed-models` and `--allowed-languages`.
 
 ```bash
 go run ./cmd/proxy serve \
 	--unix-socket /tmp/ubustt-proxy.sock \
 	--whisper-host 127.0.0.1 \
-	--whisper-port 9090 \
-	--whisper-model small \
-	--whisper-lang en
+	--backend-port 9090 \
+	--model small \
+	--language en \
+	--allowed-models "small,tiny" \
+	--allowed-languages "auto,en,fr"
 ```
 
 ## Debugging
@@ -105,6 +108,8 @@ final transcript:
 
 The `use-proxy` command to stream a local audio file to a running UbuSTT proxy server and print the transcription events as they arrive. The procedure requires `ffmpeg`.
 
+You can optionally set `--realtime-factor <float>` value to speed up audio processing.
+
 Over TCP:
 
 ```bash
@@ -117,4 +122,4 @@ Over a Unix domain socket:
 go run ./cmd/debug use-proxy --unix-socket /tmp/ubustt-proxy.sock --audio data/samples/jfk.flac
 ```
 
-If `--unix-socket` argument is used, `--url` is ignored.
+If the `--unix-socket` argument is used, `--url` is ignored.
