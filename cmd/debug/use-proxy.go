@@ -213,11 +213,9 @@ func (cmd *useProxyCommand) readLoop(out io.Writer, conn *websocket.Conn) {
 
 		switch m := msg.(type) {
 		case *messages.SessionCreated:
-			// TODO: use "litter" to dump the message
-			fmt.Fprintf(out, "[session.created]:\n%v\n\n\n", m)
+			fmt.Fprintf(out, "[session.created]: %v\n", string(payload))
 		case *messages.SessionUpdated:
-			// TODO: use "litter" to dump the message
-			fmt.Fprintf(out, "[session.updated]:\n%v\n\n\n", m.Session)
+			fmt.Fprintf(out, "[session.updated]: %v\n", string(payload))
 		case *messages.ConversationItemInputAudioTranscriptionDelta:
 			fmt.Fprintf(out, "[delta] %q\n", m.Delta)
 		case *messages.ModelLoaded:
