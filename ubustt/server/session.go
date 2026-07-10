@@ -228,7 +228,9 @@ func (s *Session) handleInputAudioBufferAppend(m *messages.InputAudioBufferAppen
 	if len(pcm) == 0 {
 		return nil
 	}
-	// TODO: this does not agree with the specification (?), may need to be reworked
+
+	// TODO: this does not follow the specs, which say that the server should accept audio
+	// chunks even if other speech has already been committed.
 	if s.audioBufferCommitted {
 		return s.SendError(
 			messages.ErrorTypeServer,
