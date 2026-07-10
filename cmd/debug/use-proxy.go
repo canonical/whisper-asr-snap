@@ -256,11 +256,11 @@ func (cmd *useProxyCommand) readLoop(out io.Writer, conn *websocket.Conn) {
 				}()
 			}
 		case *messages.ModelUnloaded:
-			fmt.Fprintf(out, "-> Received [model.unloaded]\n")
+			fmt.Fprintf(out, "-> received [model.unloaded]\n")
 		case *messages.ConversationItemInputAudioTranscriptionCompleted:
-			fmt.Fprintf(out, "-> Received [completed]: %q\n", m.Transcript)
+			fmt.Fprintf(out, "-> received [completed]: %q\n", m.Transcript)
 		case *messages.Error:
-			fmt.Fprintf(out, "-> Received [error]: %s/%s: %s\n", m.Error.Type, m.Error.Code, m.Error.Message)
+			fmt.Fprintf(out, "-> received [error]: %s/%s: %s\n", m.Error.Type, m.Error.Code, m.Error.Message)
 		default:
 			fmt.Fprintf(out, "[%T]\n", m)
 		}
