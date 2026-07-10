@@ -1,0 +1,91 @@
+name: whisper
+base: core24
+version: '0.1'
+compression: lzo
+
+summary: A UbuSTT-compliant implementation of OpenAI's Whisper
+description: |
+  Websocket-based server for automatic transcription of streamed audio.
+
+grade: devel
+confinement: strict
+
+platforms:
+  amd64:
+  # arm64: # TODO compatibility TBD
+
+layout:
+  /etc/alsa/conf.d:
+    bind: $SNAP/usr/share/alsa/alsa.conf.d
+
+parts:
+  scripts:
+    plugin: dump
+    source: ./scripts
+    organize:
+      engine.sh: bin/engine
+      server.sh: bin/server
+    stage:
+      - bin/engine
+      - bin/server
+
+  models:
+    plugin: nil
+    build-packages:
+      - git
+      - git-lfs
+    override-build: |
+      git clone https://huggingface.co/Systran/faster-whisper-base
+      mkdir -p "$CRAFT_PART_INSTALL"/models
+      cp -rf --archive --link --no-dereference faster-whisper-base "$CRAFT_PART_INSTALL"/models/faster-whisper-base
+
+  ubustt-proxy:
+    plugin: go
+    source: .
+    build-snaps:
+      - go/latest/stable
+
+  whisper-live:
+    plugin: python
+    source: https://github.com/collabora/WhisperLive.git
+    source-branch: main
+    python-requirements: 
+     - requirements/server.txt
+     - requirements/client.txt
+    
+    build-packages:
+      - python3-dev
+      - python3-venv
+      - python3-pip
+      - pkg-config
+      - portaudio19-dev
+      - patch
+    stage-packages:
+      - python3-minimal
+      - coreutils # to have `nproc`
+
+    override-build: |
+
+      craftctl default
+
+      mkdir -p "$CRAFT_PART_INSTALL"/bin/
+      cp -a "$CRAFT_PART_SRC"/run_server.py "$CRAFT_PART_INSTALL"/bin/run_server.py
+
+apps:
+  engine:
+    command: bin/engine
+    daemon: simple
+    restart-condition: on-failure
+    plugs:
+      - network
+      - network-bind
+      - opengl
+
+  server:
+    command: bin/server
+    daemon: simple
+    restart-condition: on-failure
+    plugs:
+      - network
+      - network-bind
+  
