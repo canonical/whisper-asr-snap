@@ -18,6 +18,7 @@ import (
 	"math"
 	"net/url"
 	"os"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -578,12 +579,27 @@ func (c *Client) ValidateSessionConfig(cfg backends.SessionConfig) (bool, error)
 	if cfg.SampleRate != 16000 {
 		return false, fmt.Errorf("unsupported sample rate: %d", cfg.SampleRate)
 	}
-
 	if cfg.AudioFormat != "pcm16" {
 		return false, fmt.Errorf("unsupported audio format: %s", cfg.AudioFormat)
 	}
+	if cfg.Type != "realtime" {
+		return false, fmt.Errorf("unsupported session type: %s", cfg.Type)
+	}
+	if cfg.Prompt != nil {
+		return false, fmt.Errorf("prompt is not supported")
+	}
+	if cfg.Instructions != nil {
+		return false, fmt.Errorf("instructions are not supported")
+	}
 
-	//TODO: validate type, instructions, prompt, include, audio format
+	supportedIncludes := []string{}
+
+	for _, include := range cfg.Include {
+		if !slices.Contains(supportedIncludes, include) {
+			return false, fmt.Errorf("unsupported include: %s", include)
+		}
+	}
+
 	//TODO: validate model and lang against the selected model
 	return true, nil
 }
