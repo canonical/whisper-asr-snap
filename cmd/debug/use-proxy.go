@@ -128,7 +128,7 @@ func (cmd *useProxyCommand) sendAudio(out io.Writer, conn *websocket.Conn) error
 		return fmt.Errorf("sending commit: %w", err)
 	}
 
-	fmt.Fprintf(out, "audio streaming complete\n")
+	fmt.Fprintf(out, "Audio streaming completed\n")
 	return nil
 }
 
@@ -207,23 +207,23 @@ func (cmd *useProxyCommand) readLoop(out io.Writer, conn *websocket.Conn) {
 
 		msg, err := messages.FromJson(payload)
 		if err != nil {
-			fmt.Fprintf(out, "[unparsed] %s\n", string(payload))
+			fmt.Fprintf(out, "Error unmarshaling received payload: %v\n", string(payload))
 			continue
 		}
 
 		switch m := msg.(type) {
 		case *messages.SessionCreated:
-			fmt.Fprintf(out, "[session.created]: %v\n", string(payload))
+			fmt.Fprintf(out, "-> received [session.created]: %v\n", string(payload))
 		case *messages.SessionUpdated:
-			fmt.Fprintf(out, "[session.updated]: %v\n", string(payload))
+			fmt.Fprintf(out, "-> received [session.updated]: %v\n", string(payload))
 		case *messages.ConversationItemInputAudioTranscriptionDelta:
-			fmt.Fprintf(out, "[delta] %q\n", m.Delta)
+			fmt.Fprintf(out, "-> received [delta]: %q\n", m.Delta)
 		case *messages.ModelLoaded:
-			fmt.Fprintf(out, "[model.loaded]\n")
+			fmt.Fprintf(out, "-> received [model.loaded]\n")
 			// send a session update
 			if !cmd.alreadyChanged {
 				cmd.alreadyChanged = true
-				fmt.Fprintf(out, "sending session update cmd\n")
+				fmt.Fprintf(out, "<- sending  [session.update]...\n")
 				go func() {
 					update, err := messages.ToJson(&messages.SessionUpdate{
 						Session: messages.SessionData{
@@ -241,26 +241,26 @@ func (cmd *useProxyCommand) readLoop(out io.Writer, conn *websocket.Conn) {
 						return
 					}
 					if err := conn.WriteMessage(websocket.TextMessage, update); err != nil {
-						fmt.Fprintf(out, "error sending session update: %v\n", err)
+						fmt.Fprintf(out, "Error sending [session.update]: %v\n", err)
 						return
 					}
 
-					fmt.Fprintf(out, "Sent session update cmd\n")
+					fmt.Fprintf(out, "<- sent     [session.update]\n")
 				}()
 			} else {
 				go func() {
 					if err := cmd.sendAudio(out, conn); err != nil {
-						fmt.Fprintf(out, "error sending audio: %v\n", err)
+						fmt.Fprintf(out, "Error sending audio: %v\n", err)
 					}
-					fmt.Fprintln(out, "audio committed, waiting for final transcription")
+					fmt.Fprintln(out, "Audio committed, waiting for final transcription")
 				}()
 			}
 		case *messages.ModelUnloaded:
-			fmt.Fprintf(out, "[model.unloaded]\n")
+			fmt.Fprintf(out, "-> Received [model.unloaded]\n")
 		case *messages.ConversationItemInputAudioTranscriptionCompleted:
-			fmt.Fprintf(out, "[completed] %q\n", m.Transcript)
+			fmt.Fprintf(out, "-> Received [completed]: %q\n", m.Transcript)
 		case *messages.Error:
-			fmt.Fprintf(out, "[error] %s/%s: %s\n", m.Error.Type, m.Error.Code, m.Error.Message)
+			fmt.Fprintf(out, "-> Received [error]: %s/%s: %s\n", m.Error.Type, m.Error.Code, m.Error.Message)
 		default:
 			fmt.Fprintf(out, "[%T]\n", m)
 		}
