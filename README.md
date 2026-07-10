@@ -34,7 +34,7 @@ Run bound to a Unix domain socket path:
 go run . serve --unix-socket /tmp/ubustt-proxy.sock
 ```
 
-When `--unix-socket` is set, it overrides `--host` and `--port`.
+When `--unix-socket` is set, `--host` and `--port` are ignored.
 
 Quick health check over Unix socket:
 
@@ -42,14 +42,30 @@ Quick health check over Unix socket:
 curl --unix-socket /tmp/ubustt-proxy.sock http://localhost/
 ```
 
+### Backend configuration
+
+The server will reach a WhisperLive backend at its default address of `127.0.0.1:9090`. 
+This value can be changed by setting `--whisper-host` and `--whisper-port`.
+
+The default model and language can be changed by setting `--whisper-model` and `--whisper-lang`.
+
+```bash
+go run . serve \
+	--unix-socket /tmp/ubustt-proxy.sock \
+	--whisper-host 127.0.0.1 \
+	--whisper-port 9090 \
+	--whisper-model small \
+	--whisper-lang en
+```
+
 ## Transcribe A Local Audio File
 
-Use the `transcribe` command to connect directly to a Whisper Live backend and print the final transcript for a local audio file.
+Use the `transcribe` command to connect directly to a Whisper Live backend and print the final transcript for a local audio file. This procedure requires `ffmpeg`.
 
 Basic usage:
 
 ```bash
-go run . transcribe --audio data/samples/sample.wav
+go run . transcribe --audio data/samples/jfk.flac
 ```
 
 Example with custom backend, model, language, and timeout:
@@ -75,7 +91,7 @@ final transcript:
 
 ## Stream To The Proxy (Test Client)
 
-Use the `client` command to stream a local audio file to a running UbuSTT proxy server and print the transcription events as they arrive.
+Use the `client` command to stream a local audio file to a running UbuSTT proxy server and print the transcription events as they arrive. The client requires `ffmpeg`.
 
 Over TCP:
 
