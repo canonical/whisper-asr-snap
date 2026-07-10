@@ -25,7 +25,7 @@ go run ./cmd/proxy serve
 Run with custom host and port:
 
 ```bash
-go run ./cmd/proxy serve --host 0.0.0.0 --port 9000
+go run ./cmd/proxy serve --host 0.0.0.0 --port 8080
 ```
 
 Quick health check:
