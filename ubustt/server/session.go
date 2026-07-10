@@ -31,7 +31,7 @@ type Session struct {
 	mu                   sync.Mutex
 	modelLoaded          bool // true if the backend has loaded a model
 	sessionStarted       bool // true if the user has sent any audio chunks
-	audioBufferFinalized bool // true if the user has sent InputAudioBufferCommit
+	audioBufferCommitted bool // true if the user has sent InputAudioBufferCommit
 }
 
 // NewSession creates a Session bound to a user websocket connection.
@@ -228,11 +228,12 @@ func (s *Session) handleInputAudioBufferAppend(m *messages.InputAudioBufferAppen
 	if len(pcm) == 0 {
 		return nil
 	}
-	if s.audioBufferFinalized {
+	// TODO: this does not agree with the specification (?), may need to be reworked
+	if s.audioBufferCommitted {
 		return s.SendError(
 			messages.ErrorTypeServer,
 			messages.ErrorCodeServerError,
-			"appending to a finalized audio buffer is not supported",
+			"appending to a committed audio buffer is not supported",
 		)
 	}
 	if s.backend == nil {
@@ -272,11 +273,11 @@ func (s *Session) handleInputAudioBufferCommit(_ *messages.InputAudioBufferCommi
 			"backend session not started",
 		)
 	}
-	if s.audioBufferFinalized {
+	if s.audioBufferCommitted {
 		return s.SendError(
 			messages.ErrorTypeServer,
 			messages.ErrorCodeServerError,
-			"committing a finalized audio buffer is not supported",
+			"audio buffer is already committed",
 		)
 	}
 	if !s.modelLoaded {
@@ -287,7 +288,7 @@ func (s *Session) handleInputAudioBufferCommit(_ *messages.InputAudioBufferCommi
 		)
 	}
 	s.mu.Lock()
-	s.audioBufferFinalized = true
+	s.audioBufferCommitted = true
 	s.mu.Unlock()
 	go func() {
 		if err := s.backend.Finalize(s.ctx); err != nil {
@@ -312,7 +313,7 @@ func (s *Session) onCommit(text string) {
 		log.Printf("[WARN]: sending transcription completed: %v", err)
 	}
 
-	if s.audioBufferFinalized {
+	if s.audioBufferCommitted {
 		log.Printf("Received onCommit after audio buffer finalized.\n")
 		// At this point we could close the connection and consider the session done
 		// but if we close the connection here, data is not flushed to the client and the

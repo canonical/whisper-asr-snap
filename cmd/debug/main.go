@@ -8,15 +8,16 @@ func NewRootCmd() *cobra.Command {
 	cobra.EnableCommandSorting = false
 
 	rootCmd := &cobra.Command{
-		Use:           "ubustt-proxy",
-		Short:         "A small websocket server for proxying transcription streams",
-		Long:          "Start and manage the UbuSTT websocket server.",
+		Use:           "use-proxy",
+		Short:         "Debug client for testing",
+		Long:          "Connect to a running backend or to a running UbuSTT proxy to transcribe audio.",
 		SilenceUsage:  true,
 		SilenceErrors: true,
 	}
 	rootCmd.CompletionOptions.HiddenDefaultCmd = true
 
-	rootCmd.AddCommand(NewServeCmd())
+	rootCmd.AddCommand(NewUseBackendCmd())
+	rootCmd.AddCommand(NewUseProxyCmd())
 	return rootCmd
 }
 

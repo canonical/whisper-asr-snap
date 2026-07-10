@@ -14,7 +14,7 @@ func executeTranscribe(t *testing.T, args ...string) error {
 	root := NewRootCmd()
 	root.SetOut(&bytes.Buffer{})
 	root.SetErr(&bytes.Buffer{})
-	root.SetArgs(append([]string{"transcribe"}, args...))
+	root.SetArgs(append([]string{"use-backend"}, args...))
 	return root.Execute()
 }
 

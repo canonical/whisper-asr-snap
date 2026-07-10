@@ -2,6 +2,14 @@
 
 Rely on existing transcription projects while exposing an UbuSTT-compliant API.
 
+## Building
+
+To build the UbuSTT proxy:
+
+```bash
+go build ./cmd/proxy
+```
+
 ## Run The Server
 
 The server can bind both to a TCP Socket or a Unix Domain Socket:
@@ -11,13 +19,13 @@ The server can bind both to a TCP Socket or a Unix Domain Socket:
 Run with default host and port (`127.0.0.1:8080`):
 
 ```bash
-go run . serve
+go run ./cmd/proxy serve
 ```
 
 Run with custom host and port:
 
 ```bash
-go run . serve --host 0.0.0.0 --port 9000
+go run ./cmd/proxy serve --host 0.0.0.0 --port 9000
 ```
 
 Quick health check:
@@ -31,7 +39,7 @@ curl http://127.0.0.1:8080/
 Run bound to a Unix domain socket path:
 
 ```bash
-go run . serve --unix-socket /tmp/ubustt-proxy.sock
+go run ./cmd/proxy serve --unix-socket /tmp/ubustt-proxy.sock
 ```
 
 When `--unix-socket` is set, `--host` and `--port` are ignored.
@@ -50,7 +58,7 @@ This value can be changed by setting `--whisper-host` and `--whisper-port`.
 The default model and language can be changed by setting `--whisper-model` and `--whisper-lang`.
 
 ```bash
-go run . serve \
+go run ./cmd/proxy serve \
 	--unix-socket /tmp/ubustt-proxy.sock \
 	--whisper-host 127.0.0.1 \
 	--whisper-port 9090 \
@@ -58,20 +66,24 @@ go run . serve \
 	--whisper-lang en
 ```
 
-## Transcribe A Local Audio File
+## Debugging
 
-Use the `transcribe` command to connect directly to a Whisper Live backend and print the final transcript for a local audio file. This procedure requires `ffmpeg`.
+This project includes a debug entry point to run inference directly against the backend or through a running instance of UbuSTT proxy.
+
+### Prompting the backend
+
+The `use-backend` command connects directly to a backend and prints the final transcript for a local audio file. This procedure requires `ffmpeg`.
 
 Basic usage:
 
 ```bash
-go run . transcribe --audio data/samples/jfk.flac
+go run ./cmd/debug use-backend --audio data/samples/jfk.flac
 ```
 
-Example with custom backend, model, language, and timeout:
+Example with custom model, language, and timeout:
 
 ```bash
-go run . transcribe \
+go run ./cmd/debug use-backend \
 	--host 127.0.0.1 \
 	--port 9090 \
 	--audio data/samples/jfk.flac \
@@ -84,26 +96,25 @@ Expected output shape:
 
 ```text
 connecting to whisper live at 127.0.0.1:9090
-streaming audio file: data/samples/sample.wav
+streaming audio file: data/samples/jfk.flac
 final transcript:
 <transcribed text>
 ```
 
-## Stream To The Proxy (Test Client)
+### Prompting UbuSTT
 
-Use the `client` command to stream a local audio file to a running UbuSTT proxy server and print the transcription events as they arrive. The client requires `ffmpeg`.
+The `use-proxy` command to stream a local audio file to a running UbuSTT proxy server and print the transcription events as they arrive. The procedure requires `ffmpeg`.
 
 Over TCP:
 
 ```bash
-go run . client --url ws://127.0.0.1:8080/ws --audio data/samples/jfk.flac
+go run ./cmd/debug use-proxy --url ws://127.0.0.1:8080/ws --audio data/samples/jfk.flac
 ```
 
 Over a Unix domain socket:
 
 ```bash
-go run . client --unix-socket /tmp/ubustt-proxy.sock --audio data/samples/jfk.flac
+go run ./cmd/debug use-proxy --unix-socket /tmp/ubustt-proxy.sock --audio data/samples/jfk.flac
 ```
 
 If `--unix-socket` argument is used, `--url` is ignored.
-

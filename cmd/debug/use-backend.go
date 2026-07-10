@@ -13,7 +13,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-type transcribeCommand struct {
+type useBackendCommand struct {
 	host       string
 	port       int
 	audioPath  string
@@ -22,30 +22,30 @@ type transcribeCommand struct {
 	timeoutSec int
 }
 
-func NewTranscribeCmd() *cobra.Command {
-	var cmd transcribeCommand
+func NewUseBackendCmd() *cobra.Command {
+	var cmd useBackendCommand
 
 	cobraCmd := &cobra.Command{
-		Use:               "transcribe",
-		Short:             "Transcribe a local audio file with Whisper Live",
+		Use:               "use-backend",
+		Short:             "Use Whisper Live backend to transcribe a local audio file",
 		Long:              "Connect to a Whisper Live websocket backend and transcribe a local audio file through ffmpeg streaming. Requires ffmpeg.",
 		Args:              cobra.NoArgs,
 		ValidArgsFunction: cobra.NoFileCompletions,
 		RunE:              cmd.run,
 	}
 
-	cobraCmd.Flags().StringVar(&cmd.host, "host", "127.0.0.1", "Whisper Live host")
-	cobraCmd.Flags().IntVar(&cmd.port, "port", 9090, "Whisper Live port")
+	cobraCmd.Flags().StringVar(&cmd.host, "host", "127.0.0.1", "backend host")
+	cobraCmd.Flags().IntVar(&cmd.port, "port", 9090, "backend port")
 	cobraCmd.Flags().StringVar(&cmd.audioPath, "audio", "", "path to local audio file to transcribe")
-	cobraCmd.Flags().StringVar(&cmd.model, "model", "small", "Whisper model name")
-	cobraCmd.Flags().StringVar(&cmd.lang, "lang", "en", "source language code")
+	cobraCmd.Flags().StringVar(&cmd.model, "model", "small", "backend model name")
+	cobraCmd.Flags().StringVar(&cmd.lang, "lang", "en", "audio language code")
 	cobraCmd.Flags().IntVar(&cmd.timeoutSec, "timeout-sec", 180, "command timeout in seconds")
 	_ = cobraCmd.MarkFlagRequired("audio")
 
 	return cobraCmd
 }
 
-func (cmd *transcribeCommand) run(cobraCmd *cobra.Command, _ []string) error {
+func (cmd *useBackendCommand) run(cobraCmd *cobra.Command, _ []string) error {
 	if _, err := os.Stat(cmd.audioPath); err != nil {
 		return fmt.Errorf("audio file not accessible: %w", err)
 	}
