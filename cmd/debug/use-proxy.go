@@ -230,7 +230,7 @@ func (cmd *useProxyCommand) readLoop(out io.Writer, conn *websocket.Conn) {
 							Audio: &messages.SessionAudio{
 								Input: &messages.SessionAudioInput{
 									Transcription: &messages.SessionTranscription{
-										Model: new("small"),
+										Model: new("tiny"),
 									},
 								},
 							},
