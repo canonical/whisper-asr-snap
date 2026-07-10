@@ -1,4 +1,4 @@
-package client
+package server
 
 import (
 	"context"
@@ -13,11 +13,11 @@ import (
 	"github.com/gorilla/websocket"
 )
 
-// Client holds the per-connection state for a single UbuSTT user. Each client
+// Session holds the per-connection state for a single UbuSTT user. Each session
 // owns a dedicated backend session: audio frames received from the user are
 // forwarded to the backend, and transcription results are translated into
 // UbuSTT events and pushed to the user.
-type Client struct {
+type Session struct {
 	Connection *websocket.Conn
 
 	factory backends.Factory
@@ -34,71 +34,71 @@ type Client struct {
 	audioBufferFinalized bool // true if the user has sent InputAudioBufferCommit
 }
 
-// NewClient creates a Client bound to a user websocket connection.
-func NewClient(conn *websocket.Conn, factory backends.Factory) *Client {
-	return &Client{Connection: conn, factory: factory}
+// NewSession creates a Session bound to a user websocket connection.
+func NewSession(conn *websocket.Conn, factory backends.Factory) *Session {
+	return &Session{Connection: conn, factory: factory}
 }
 
 // Start opens the backend session, waits until it is ready, and advertises the
 // session configuration to the user via session.created.
-func (c *Client) Start(ctx context.Context) error {
-	c.ctx = ctx
+func (s *Session) Start(ctx context.Context) error {
+	s.ctx = ctx
 
 	callbacks := backends.BackendCallbacks{
-		OnDelta:         c.onDelta,
-		OnCommit:        c.onCommit,
-		OnModelLoaded:   c.onModelLoaded,
-		OnModelUnloaded: c.onModelUnloaded,
+		OnDelta:         s.onDelta,
+		OnCommit:        s.onCommit,
+		OnModelLoaded:   s.onModelLoaded,
+		OnModelUnloaded: s.onModelUnloaded,
 	}
 
-	backend, err := c.factory(ctx, callbacks)
+	backend, err := s.factory(ctx, callbacks)
 	if err != nil {
 		return fmt.Errorf("opening backend session: %w", err)
 	}
-	c.backend = backend
+	s.backend = backend
 
 	if err := backend.WaitReady(ctx); err != nil {
 		return fmt.Errorf("waiting for backend: %w", err)
 	}
 
-	created := messages.NewSessionCreated(c.backend.GetConfig())
+	created := messages.NewSessionCreated(s.backend.GetConfig())
 
-	if err := c.send(created); err != nil {
+	if err := s.send(created); err != nil {
 		return fmt.Errorf("sending session.created: %w", err)
 	}
 
 	// If the backend session ends (WhisperLive closed the connection, errored,
 	// or we tore it down), close the user connection too.
-	go c.watchBackend()
+	go s.watchBackend()
 	return nil
 }
 
 // watchBackend blocks until the WhisperLive session ends and then closes the
 // user-facing connection, unblocking the server read loop.
-func (c *Client) watchBackend() {
-	<-c.backend.Done()
+func (s *Session) watchBackend() {
+	<-s.backend.Done()
 	log.Printf("Whisper live backend closed, closing user connection")
-	c.Close()
+	s.Close()
 }
 
 // Close tears down the backend session and the user connection. It is safe to
 // call multiple times and from multiple goroutines.
-func (c *Client) Close() error {
-	c.closeOnce.Do(func() {
-		if c.backend != nil {
-			_ = c.backend.Close()
+func (s *Session) Close() error {
+	s.closeOnce.Do(func() {
+		if s.backend != nil {
+			_ = s.backend.Close()
 		}
-		_ = c.Connection.Close()
+		_ = s.Connection.Close()
 	})
 	return nil
 }
 
 // HandleMessage decodes a raw text frame and dispatches it to the handler that
 // owns the required client state.
-func (c *Client) HandleMessage(payload []byte) error {
+func (s *Session) HandleMessage(payload []byte) error {
 	msg, err := messages.FromJson(payload)
 	if err != nil {
-		return c.SendError(
+		return s.SendError(
 			messages.ErrorTypeInvalidRequest,
 			messages.ErrorCodeInvalidParameter,
 			fmt.Sprintf("decoding message: %s", err),
@@ -107,13 +107,13 @@ func (c *Client) HandleMessage(payload []byte) error {
 
 	switch m := msg.(type) {
 	case *messages.SessionUpdate:
-		return c.handleSessionUpdate(m)
+		return s.handleSessionUpdate(m)
 	case *messages.InputAudioBufferAppend:
-		return c.handleInputAudioBufferAppend(m)
+		return s.handleInputAudioBufferAppend(m)
 	case *messages.InputAudioBufferCommit:
-		return c.handleInputAudioBufferCommit(m)
+		return s.handleInputAudioBufferCommit(m)
 	default:
-		return c.SendError(
+		return s.SendError(
 			messages.ErrorTypeInvalidRequest,
 			messages.ErrorCodeInvalidParameter,
 			fmt.Sprintf("unexpected message type: %T", m),
@@ -153,73 +153,12 @@ func getMergedConfiguration(original *backends.SessionConfig, update *messages.S
 	return cfg
 }
 
-///////////////func (c *Client) validateSessionUpdateAgainstBackend(m *messages.SessionUpdate) error {
-///////////////	// Validate audio format supported by the backend
-///////////////	if m.Session.Audio != nil && m.Session.Audio.Input != nil && m.Session.Audio.Input.Format != nil {
-///////////////		backendSupport, err := c.backend.IsAudioFormatSupported(m.Session.Audio.Input.Format.Rate)
-///////////////		if err != nil {
-///////////////			return c.SendError(
-///////////////				messages.ErrorTypeServer,
-///////////////				messages.ErrorCodeServerError,
-///////////////				fmt.Sprintf("checking audio format support: %s", err),
-///////////////			)
-///////////////		}
-///////////////		if !backendSupport {
-///////////////			return c.SendError(
-///////////////				messages.ErrorTypeInvalidRequest,
-///////////////				messages.ErrorCodeInvalidParameter,
-///////////////				"unsupported audio format",
-///////////////			)
-///////////////		}
-///////////////	}
-///////////////
-///////////////	// Validate model and language availability
-///////////////	if m.Session.Audio != nil && m.Session.Audio.Input != nil && m.Session.Audio.Input.Transcription != nil {
-///////////////		if m.Session.Audio.Input.Transcription.Model != nil {
-///////////////			modelAvailable, err := c.backend.IsModelAvailable(*m.Session.Audio.Input.Transcription.Model)
-///////////////			if err != nil {
-///////////////				return c.SendError(
-///////////////					messages.ErrorTypeServer,
-///////////////					messages.ErrorCodeServerError,
-///////////////					fmt.Sprintf("checking model availability: %s", err),
-///////////////				)
-///////////////			}
-///////////////			if !modelAvailable {
-///////////////				return c.SendError(
-///////////////					messages.ErrorTypeInvalidRequest,
-///////////////					messages.ErrorCodeInvalidParameter,
-///////////////					"unsupported model",
-///////////////				)
-///////////////			}
-///////////////		}
-///////////////
-///////////////		if m.Session.Audio.Input.Transcription.Language != nil {
-///////////////			languageAvailable, err := c.backend.IsLanguageAvailable(*m.Session.Audio.Input.Transcription.Language)
-///////////////			if err != nil {
-///////////////				return c.SendError(
-///////////////					messages.ErrorTypeServer,
-///////////////					messages.ErrorCodeServerError,
-///////////////					fmt.Sprintf("checking language support: %s", err),
-///////////////				)
-///////////////			}
-///////////////			if !languageAvailable {
-///////////////				return c.SendError(
-///////////////					messages.ErrorTypeInvalidRequest,
-///////////////					messages.ErrorCodeInvalidParameter,
-///////////////					"unsupported language",
-///////////////				)
-///////////////			}
-///////////////		}
-///////////////	}
-///////////////	return nil
-///////////////}
-
 // handleSessionUpdate merges the requested session patch and acknowledges it
 // with a session.updated event.
-func (c *Client) handleSessionUpdate(m *messages.SessionUpdate) error {
+func (s *Session) handleSessionUpdate(m *messages.SessionUpdate) error {
 	// Validate request
 	if err := m.Validate(); err != nil {
-		return c.SendError(
+		return s.SendError(
 			messages.ErrorTypeInvalidRequest,
 			messages.ErrorCodeInvalidParameter,
 			fmt.Sprintf("invalid session update: %s", err),
@@ -227,18 +166,18 @@ func (c *Client) handleSessionUpdate(m *messages.SessionUpdate) error {
 	}
 
 	// Merge configurations
-	mergedConfig := getMergedConfiguration(c.backend.GetConfig(), m)
+	mergedConfig := getMergedConfiguration(s.backend.GetConfig(), m)
 
 	// Validate merged config against the backend
-	ok, err := c.backend.ValidateSessionConfig(mergedConfig)
+	ok, err := s.backend.ValidateSessionConfig(mergedConfig)
 	if err != nil {
-		return c.SendError(
+		return s.SendError(
 			messages.ErrorTypeServer,
 			messages.ErrorCodeServerError,
 			fmt.Sprintf("validating session configuration: %s", err),
 		)
 	} else if !ok {
-		return c.SendError(
+		return s.SendError(
 			messages.ErrorTypeInvalidRequest,
 			messages.ErrorCodeInvalidParameter,
 			fmt.Sprintf("invalid session configuration: %s", err),
@@ -246,8 +185,8 @@ func (c *Client) handleSessionUpdate(m *messages.SessionUpdate) error {
 	}
 
 	// Reject changes if currently transcribing
-	if c.sessionStarted {
-		return c.SendError(
+	if s.sessionStarted {
+		return s.SendError(
 			messages.ErrorTypeInvalidRequest,
 			messages.ErrorCodeInvalidParameter,
 			"session updates are not allowed after audio has been sent",
@@ -255,32 +194,32 @@ func (c *Client) handleSessionUpdate(m *messages.SessionUpdate) error {
 	}
 
 	// Apply the merged configuration to the backend
-	err = c.backend.SetConfig(mergedConfig)
+	err = s.backend.SetConfig(mergedConfig)
 
 	if err != nil {
-		return c.SendError(
+		return s.SendError(
 			messages.ErrorTypeServer,
 			messages.ErrorCodeServerError,
 			fmt.Sprintf("setting backend config: %s", err),
 		)
 	}
 
-	return c.send(messages.NewSessionUpdated(c.backend.GetConfig()))
+	return s.send(messages.NewSessionUpdated(s.backend.GetConfig()))
 }
 
 // Sends an error message on the user connection.
 // The error is also returned to the caller for convenience.
-func (c *Client) SendError(errorType string, errorCode string, message string) error {
-	c.send(messages.NewError(errorType, errorCode, message))
+func (s *Session) SendError(errorType string, errorCode string, message string) error {
+	s.send(messages.NewError(errorType, errorCode, message))
 	return fmt.Errorf("%s", message)
 }
 
 // handleInputAudioBufferAppend decodes a base64 PCM16 chunk and forwards it to
 // the WhisperLive backend.
-func (c *Client) handleInputAudioBufferAppend(m *messages.InputAudioBufferAppend) error {
+func (s *Session) handleInputAudioBufferAppend(m *messages.InputAudioBufferAppend) error {
 	pcm, err := base64.StdEncoding.DecodeString(m.Audio)
 	if err != nil {
-		return c.SendError(
+		return s.SendError(
 			messages.ErrorTypeInvalidRequest,
 			messages.ErrorCodeInvalidParameter,
 			"audio is not valid base64",
@@ -289,33 +228,33 @@ func (c *Client) handleInputAudioBufferAppend(m *messages.InputAudioBufferAppend
 	if len(pcm) == 0 {
 		return nil
 	}
-	if c.audioBufferFinalized {
-		return c.SendError(
+	if s.audioBufferFinalized {
+		return s.SendError(
 			messages.ErrorTypeServer,
 			messages.ErrorCodeServerError,
 			"appending to a finalized audio buffer is not supported",
 		)
 	}
-	if c.backend == nil {
-		return c.SendError(
+	if s.backend == nil {
+		return s.SendError(
 			messages.ErrorTypeInvalidRequest,
 			messages.ErrorCodeNoModelError,
 			"backend session not started",
 		)
 	}
-	if !c.modelLoaded {
-		return c.SendError(
+	if !s.modelLoaded {
+		return s.SendError(
 			messages.ErrorTypeInvalidRequest,
 			messages.ErrorCodeNoModelError,
 			"no model loaded",
 		)
 	}
 
-	c.mu.Lock()
-	c.sessionStarted = true
-	c.mu.Unlock()
+	s.mu.Lock()
+	s.sessionStarted = true
+	s.mu.Unlock()
 
-	if err := c.backend.SendPCM16(pcm); err != nil {
+	if err := s.backend.SendPCM16(pcm); err != nil {
 		return fmt.Errorf("forwarding audio to backend: %w", err)
 	}
 	return nil
@@ -325,33 +264,33 @@ func (c *Client) handleInputAudioBufferAppend(m *messages.InputAudioBufferAppend
 // finalization sequence in a goroutine: wait until the backend is idle (so the
 // final segment is not dropped), send END_OF_AUDIO, then wait for the server to
 // close — at which point watchBackend tears down the user connection.
-func (c *Client) handleInputAudioBufferCommit(_ *messages.InputAudioBufferCommit) error {
-	if c.backend == nil {
-		return c.SendError(
+func (s *Session) handleInputAudioBufferCommit(_ *messages.InputAudioBufferCommit) error {
+	if s.backend == nil {
+		return s.SendError(
 			messages.ErrorTypeInvalidRequest,
 			messages.ErrorCodeNoModelError,
 			"backend session not started",
 		)
 	}
-	if c.audioBufferFinalized {
-		return c.SendError(
+	if s.audioBufferFinalized {
+		return s.SendError(
 			messages.ErrorTypeServer,
 			messages.ErrorCodeServerError,
 			"committing a finalized audio buffer is not supported",
 		)
 	}
-	if !c.modelLoaded {
-		return c.SendError(
+	if !s.modelLoaded {
+		return s.SendError(
 			messages.ErrorTypeInvalidRequest,
 			messages.ErrorCodeNoModelError,
 			"no model loaded",
 		)
 	}
-	c.mu.Lock()
-	c.audioBufferFinalized = true
-	c.mu.Unlock()
+	s.mu.Lock()
+	s.audioBufferFinalized = true
+	s.mu.Unlock()
 	go func() {
-		if err := c.backend.Finalize(c.ctx); err != nil {
+		if err := s.backend.Finalize(s.ctx); err != nil {
 			log.Printf("[WARN]: finalizing backend: %v", err)
 		}
 	}()
@@ -360,20 +299,20 @@ func (c *Client) handleInputAudioBufferCommit(_ *messages.InputAudioBufferCommit
 
 // onDelta is called by the backend whenever a new text fragment is available
 // for the current partial segment.
-func (c *Client) onDelta(delta string) {
-	if err := c.send(messages.NewTranscriptionDelta(delta)); err != nil {
+func (s *Session) onDelta(delta string) {
+	if err := s.send(messages.NewTranscriptionDelta(delta)); err != nil {
 		log.Printf("[WARN]: sending transcription delta: %v", err)
 	}
 }
 
 // onCommit is called by the backend when a segment is finalized. An empty text
 // signals a partial reset (the backend revised the in-progress text).
-func (c *Client) onCommit(text string) {
-	if err := c.send(messages.NewTranscriptionCompleted(text)); err != nil {
+func (s *Session) onCommit(text string) {
+	if err := s.send(messages.NewTranscriptionCompleted(text)); err != nil {
 		log.Printf("[WARN]: sending transcription completed: %v", err)
 	}
 
-	if c.audioBufferFinalized {
+	if s.audioBufferFinalized {
 		log.Printf("Received onCommit after audio buffer finalized.\n")
 		// At this point we could close the connection and consider the session done
 		// but if we close the connection here, data is not flushed to the client and the
@@ -383,38 +322,38 @@ func (c *Client) onCommit(text string) {
 }
 
 // Invoked when the backend has loaded a model.
-func (c *Client) onModelLoaded() {
-	c.mu.Lock()
-	c.modelLoaded = true
-	c.mu.Unlock()
+func (s *Session) onModelLoaded() {
+	s.mu.Lock()
+	s.modelLoaded = true
+	s.mu.Unlock()
 	// Send a new ModelLoaded message to the user
-	err := c.send(new(messages.ModelLoaded))
+	err := s.send(new(messages.ModelLoaded))
 	if err != nil {
 		log.Printf("[WARN]: sending model loaded: %v", err)
 	}
 }
 
 // Invoked when the backend has unloaded a model.
-func (c *Client) onModelUnloaded() {
-	c.mu.Lock()
-	c.modelLoaded = false
-	c.mu.Unlock()
+func (s *Session) onModelUnloaded() {
+	s.mu.Lock()
+	s.modelLoaded = false
+	s.mu.Unlock()
 	// Send a new ModelUnloaded message to the user
-	err := c.send(new(messages.ModelUnloaded))
+	err := s.send(new(messages.ModelUnloaded))
 	if err != nil {
 		log.Printf("[WARN]: sending model unloaded: %v", err)
 	}
 }
 
 // send serializes an outbound message and writes it to the user websocket.
-func (c *Client) send(m messages.Message) error {
+func (s *Session) send(m messages.Message) error {
 	data, err := messages.ToJson(m)
 	if err != nil {
 		return fmt.Errorf("encoding message: %w", err)
 	}
-	c.writeMu.Lock()
-	defer c.writeMu.Unlock()
-	return c.Connection.WriteMessage(websocket.TextMessage, data)
+	s.writeMu.Lock()
+	defer s.writeMu.Unlock()
+	return s.Connection.WriteMessage(websocket.TextMessage, data)
 }
 
 // sessionFromCreated seeds local session state from the advertised defaults so
