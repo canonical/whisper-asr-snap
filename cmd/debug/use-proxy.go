@@ -228,10 +228,10 @@ func (cmd *useProxyCommand) readLoop(out io.Writer, conn *websocket.Conn) {
 				fmt.Fprintf(out, "sending session update cmd\n")
 				go func() {
 					update, err := messages.ToJson(&messages.SessionUpdate{
-						Session: messages.SessionUpdateSession{
-							Audio: &messages.SessionUpdateAudio{
-								Input: &messages.SessionUpdateAudioInput{
-									Transcription: &messages.SessionUpdateTranscription{
+						Session: messages.SessionData{
+							Audio: &messages.SessionAudio{
+								Input: &messages.SessionAudioInput{
+									Transcription: &messages.SessionTranscription{
 										Model: new("small"),
 									},
 								},

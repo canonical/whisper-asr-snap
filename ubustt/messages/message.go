@@ -6,7 +6,6 @@ import (
 )
 
 type MessageBase struct {
-	Message
 	Type string `json:"type"`
 }
 

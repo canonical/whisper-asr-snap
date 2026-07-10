@@ -10,16 +10,16 @@ import (
 func TestFromJsonSessionCreated(t *testing.T) {
 	prompt := "prompt"
 	want := &SessionCreated{
-		Session: SessionCreatedSession{
-			Type:         "realtime",
+		Session: SessionData{
+			Type:         new("realtime"),
 			Instructions: new("instructions"),
 			Prompt:       &prompt,
-			Audio: SessionCreatedAudio{
-				Input: SessionCreatedAudioInput{
-					Format: SessionCreatedFormat{Rate: 16000},
-					Transcription: SessionCreatedTranscription{
-						Model:    "small",
-						Language: "en",
+			Audio: &SessionAudio{
+				Input: &SessionAudioInput{
+					Format: &SessionAudioFormat{Rate: 16000},
+					Transcription: &SessionTranscription{
+						Model:    new("small"),
+						Language: new("en"),
 					},
 				},
 			},
@@ -49,22 +49,22 @@ func TestFromJsonSessionCreated(t *testing.T) {
 		t.Errorf("got.Type = %q, want %q", got.Type, "session.created")
 	}
 	if got.Session.Type != want.Session.Type {
-		t.Errorf("Session.Type = %q, want %q", got.Session.Type, want.Session.Type)
+		t.Errorf("Session.Type = %v, want %v", got.Session.Type, want.Session.Type)
 	}
 	if got.Session.Instructions != want.Session.Instructions {
-		t.Errorf("Session.Instructions = %q, want %q", got.Session.Instructions, want.Session.Instructions)
+		t.Errorf("Session.Instructions = %v, want %v", got.Session.Instructions, want.Session.Instructions)
 	}
 	if got.Session.Prompt == nil || *got.Session.Prompt != prompt {
-		t.Errorf("Session.Prompt = %v, want %q", got.Session.Prompt, prompt)
+		t.Errorf("Session.Prompt = %v, want %v", got.Session.Prompt, prompt)
 	}
 	if got.Session.Audio.Input.Format.Rate != want.Session.Audio.Input.Format.Rate {
 		t.Errorf("Format.Rate = %d, want %d", got.Session.Audio.Input.Format.Rate, want.Session.Audio.Input.Format.Rate)
 	}
-	if got.Session.Audio.Input.Transcription.Model != want.Session.Audio.Input.Transcription.Model {
-		t.Errorf("Transcription.Model = %q, want %q", got.Session.Audio.Input.Transcription.Model, want.Session.Audio.Input.Transcription.Model)
+	if got.Session.Audio.Input.Transcription == nil || *got.Session.Audio.Input.Transcription.Model != *want.Session.Audio.Input.Transcription.Model {
+		t.Errorf("Transcription.Model = %v, want %v", got.Session.Audio.Input.Transcription.Model, want.Session.Audio.Input.Transcription.Model)
 	}
-	if got.Session.Audio.Input.Transcription.Language != want.Session.Audio.Input.Transcription.Language {
-		t.Errorf("Transcription.Language = %q, want %q", got.Session.Audio.Input.Transcription.Language, want.Session.Audio.Input.Transcription.Language)
+	if got.Session.Audio.Input.Transcription == nil || *got.Session.Audio.Input.Transcription.Language != *want.Session.Audio.Input.Transcription.Language {
+		t.Errorf("Transcription.Language = %v, want %v", got.Session.Audio.Input.Transcription.Language, want.Session.Audio.Input.Transcription.Language)
 	}
 	if len(got.Session.Include) != 1 || got.Session.Include[0] != "logprobs" {
 		t.Errorf("Session.Include = %v, want [logprobs]", got.Session.Include)
@@ -92,14 +92,14 @@ func TestFromJsonMalformed(t *testing.T) {
 func TestFromJsonSessionUpdate(t *testing.T) {
 	prompt := "my-prompt"
 	want := &SessionUpdate{
-		Session: SessionUpdateSession{
+		Session: SessionData{
 			Type:         new("realtime"),
 			Instructions: new("do things"),
 			Prompt:       &prompt,
-			Audio: &SessionUpdateAudio{
-				Input: &SessionUpdateAudioInput{
-					Format: &SessionUpdateFormat{Rate: 16000},
-					Transcription: &SessionUpdateTranscription{
+			Audio: &SessionAudio{
+				Input: &SessionAudioInput{
+					Format: &SessionAudioFormat{Rate: 16000},
+					Transcription: &SessionTranscription{
 						Model:    new("large"),
 						Language: new("fr"),
 					},
@@ -134,14 +134,14 @@ func TestFromJsonSessionUpdate(t *testing.T) {
 
 func TestFromJsonSessionUpdated(t *testing.T) {
 	want := &SessionUpdated{
-		Session: SessionUpdatedSession{
-			Type: "realtime",
-			Audio: SessionUpdatedAudio{
-				Input: SessionUpdatedAudioInput{
-					Format: SessionUpdatedFormat{Rate: 44100},
-					Transcription: SessionUpdatedTranscription{
-						Model:    "small",
-						Language: "de",
+		Session: SessionData{
+			Type: new("realtime"),
+			Audio: &SessionAudio{
+				Input: &SessionAudioInput{
+					Format: &SessionAudioFormat{Rate: 44100},
+					Transcription: &SessionTranscription{
+						Model:    new("small"),
+						Language: new("de"),
 					},
 				},
 			},
@@ -327,8 +327,8 @@ func TestNewSessionCreated(t *testing.T) {
 	if m.Type != "session.created" {
 		t.Errorf("Type = %q, want %q", m.Type, "session.created")
 	}
-	if m.Session.Type != "realtime" {
-		t.Errorf("Session.Type = %q, want %q", m.Session.Type, "realtime")
+	if m.Session.Type == nil || *m.Session.Type != "realtime" {
+		t.Errorf("Session.Type = %v, want %q", m.Session.Type, "realtime")
 	}
 	if m.Session.Instructions == nil || *m.Session.Instructions != "instructions" {
 		t.Errorf("Session.Instructions = %v, want %q", m.Session.Instructions, "instructions")
@@ -336,11 +336,11 @@ func TestNewSessionCreated(t *testing.T) {
 	if m.Session.Prompt == nil || *m.Session.Prompt != "my-prompt" {
 		t.Errorf("Session.Prompt = %v, want %q", m.Session.Prompt, "my-prompt")
 	}
-	if m.Session.Audio.Input.Transcription.Model != "large" {
-		t.Errorf("Model = %q, want %q", m.Session.Audio.Input.Transcription.Model, "large")
+	if m.Session.Audio.Input.Transcription.Model == nil || *m.Session.Audio.Input.Transcription.Model != "large" {
+		t.Errorf("Model = %v, want %q", m.Session.Audio.Input.Transcription.Model, "large")
 	}
-	if m.Session.Audio.Input.Transcription.Language != "es" {
-		t.Errorf("Language = %q, want %q", m.Session.Audio.Input.Transcription.Language, "es")
+	if m.Session.Audio.Input.Transcription.Language == nil || *m.Session.Audio.Input.Transcription.Language != "es" {
+		t.Errorf("Language = %v, want %q", m.Session.Audio.Input.Transcription.Language, "es")
 	}
 	if m.Session.Audio.Input.Format.Rate != 16000 {
 		t.Errorf("Rate = %d, want 16000", m.Session.Audio.Input.Format.Rate)
@@ -368,11 +368,11 @@ func TestNewSessionUpdated(t *testing.T) {
 	if m.Session.Prompt == nil || *m.Session.Prompt != "p" {
 		t.Errorf("Prompt = %v, want %q", m.Session.Prompt, "p")
 	}
-	if m.Session.Audio.Input.Format.Rate != 8000 {
-		t.Errorf("Rate = %d, want 8000", m.Session.Audio.Input.Format.Rate)
+	if m.Session.Audio.Input.Format == nil || m.Session.Audio.Input.Format.Rate != 8000 {
+		t.Errorf("Rate = %v, want 8000", m.Session.Audio.Input.Format)
 	}
-	if m.Session.Audio.Input.Transcription.Model != "tiny" {
-		t.Errorf("Model = %q, want %q", m.Session.Audio.Input.Transcription.Model, "tiny")
+	if m.Session.Audio.Input.Transcription == nil || *m.Session.Audio.Input.Transcription.Model != "tiny" {
+		t.Errorf("Model = %v, want %q", m.Session.Audio.Input.Transcription.Model, "tiny")
 	}
 	if len(m.Session.Include) != 1 || m.Session.Include[0] != "logprobs" {
 		t.Errorf("Include = %v, want [logprobs]", m.Session.Include)

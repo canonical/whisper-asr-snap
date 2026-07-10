@@ -359,17 +359,17 @@ func (s *Session) send(m messages.Message) error {
 
 // sessionFromCreated seeds local session state from the advertised defaults so
 // later session.update patches merge against a known baseline.
-func sessionFromCreated(m *messages.SessionCreated) messages.SessionUpdateSession {
-	return messages.SessionUpdateSession{
-		Type:         &m.Session.Type,
+func sessionFromCreated(m *messages.SessionCreated) messages.SessionData {
+	return messages.SessionData{
+		Type:         m.Session.Type,
 		Instructions: m.Session.Instructions,
 		Prompt:       m.Session.Prompt,
-		Audio: &messages.SessionUpdateAudio{
-			Input: &messages.SessionUpdateAudioInput{
-				Format: &messages.SessionUpdateFormat{Rate: m.Session.Audio.Input.Format.Rate},
-				Transcription: &messages.SessionUpdateTranscription{
-					Model:    &m.Session.Audio.Input.Transcription.Model,
-					Language: &m.Session.Audio.Input.Transcription.Language,
+		Audio: &messages.SessionAudio{
+			Input: &messages.SessionAudioInput{
+				Format: &messages.SessionAudioFormat{Rate: m.Session.Audio.Input.Format.Rate},
+				Transcription: &messages.SessionTranscription{
+					Model:    m.Session.Audio.Input.Transcription.Model,
+					Language: m.Session.Audio.Input.Transcription.Language,
 				},
 			},
 		},
