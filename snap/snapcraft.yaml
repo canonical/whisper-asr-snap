@@ -51,7 +51,6 @@ parts:
     source-branch: main
     python-requirements: 
      - requirements/server.txt
-     - requirements/client.txt
     
     build-packages:
       - python3-dev
@@ -59,7 +58,6 @@ parts:
       - python3-pip
       - pkg-config
       - portaudio19-dev
-      - patch
     stage-packages:
       - python3-minimal
       - coreutils # to have `nproc`
