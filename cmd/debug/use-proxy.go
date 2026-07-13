@@ -28,6 +28,7 @@ type useProxyCommand struct {
 	timeoutSec     int
 	realtimeFactor float64
 	alreadyChanged bool
+	model          string
 
 	ctx *context.Context
 }
@@ -54,6 +55,7 @@ func NewUseProxyCmd() *cobra.Command {
 	cobraCmd.Flags().IntVar(&cmd.sampleRate, "rate", 16000, "sample rate to resample the audio to")
 	cobraCmd.Flags().IntVar(&cmd.chunkBytes, "chunk-bytes", 4096, "PCM16 bytes per append event")
 	cobraCmd.Flags().IntVar(&cmd.timeoutSec, "timeout-sec", 180, "overall command timeout in seconds")
+	cobraCmd.Flags().StringVar(&cmd.model, "model", "base", "model name to switch to")
 	cobraCmd.Flags().Float64Var(&cmd.realtimeFactor, "realtime-factor", 1.0, "factor to adjust real-time pacing of audio streaming")
 
 	return cobraCmd
@@ -232,7 +234,7 @@ func (cmd *useProxyCommand) readLoop(out io.Writer, conn *websocket.Conn) {
 							Audio: &messages.SessionAudio{
 								Input: &messages.SessionAudioInput{
 									Transcription: &messages.SessionTranscription{
-										Model: new("tiny"),
+										Model: new(cmd.model),
 									},
 								},
 							},
