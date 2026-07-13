@@ -48,10 +48,10 @@ func TestFromJsonSessionCreated(t *testing.T) {
 	if got.Type != "session.created" {
 		t.Errorf("got.Type = %q, want %q", got.Type, "session.created")
 	}
-	if got.Session.Type != want.Session.Type {
+	if *got.Session.Type != *want.Session.Type {
 		t.Errorf("Session.Type = %v, want %v", got.Session.Type, want.Session.Type)
 	}
-	if got.Session.Instructions != want.Session.Instructions {
+	if *got.Session.Instructions != *want.Session.Instructions {
 		t.Errorf("Session.Instructions = %v, want %v", got.Session.Instructions, want.Session.Instructions)
 	}
 	if got.Session.Prompt == nil || *got.Session.Prompt != prompt {
