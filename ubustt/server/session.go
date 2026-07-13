@@ -77,7 +77,7 @@ func (s *Session) Start(ctx context.Context) error {
 // user-facing connection, unblocking the server read loop.
 func (s *Session) watchBackend() {
 	<-s.backend.Done()
-	log.Printf("Whisper live backend closed, closing user connection")
+	log.Printf("Backend closed, closing user connection")
 	s.Close()
 }
 
