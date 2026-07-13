@@ -78,6 +78,8 @@ func (cmd *useProxyCommand) run(cobraCmd *cobra.Command, _ []string) error {
 
 	dialer := *websocket.DefaultDialer
 	unixSocket := strings.TrimSpace(cmd.unixSocket)
+	unixSocket = strings.TrimPrefix(unixSocket, "unix://") // remove unix:// prefix if present
+
 	if unixSocket != "" {
 		fmt.Fprintf(out, "connecting to unix socket %s\n", unixSocket)
 		dialer.NetDialContext = func(ctx context.Context, _, _ string) (net.Conn, error) {
