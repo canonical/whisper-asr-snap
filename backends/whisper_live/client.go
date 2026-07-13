@@ -363,7 +363,6 @@ func (c *Client) updateSegments(segments []Segment) {
 
 	// Compute delta/commit callbacks to fire after releasing the lock.
 	newSegmentID := len(segments) - 1
-	lastText := strings.TrimSpace(last.Text)
 	var pending []func()
 
 	if c.segmentID != newSegmentID {
@@ -377,17 +376,17 @@ func (c *Client) updateSegments(segments []Segment) {
 		c.segmentID = newSegmentID
 	}
 
-	if !last.Completed && lastText != c.emitted {
+	if !last.Completed && last.Text != c.emitted { // new partial text
 		c.emittedIsCommitted = false
-		if newText, ok := strings.CutPrefix(lastText, c.emitted); ok && newText != "" {
+		if newText, ok := strings.CutPrefix(last.Text, c.emitted); ok && newText != "" {
 			// Extend: only the new suffix is novel.
-			c.emitted = lastText
+			c.emitted = last.Text
 			if fn := c.cfg.Callbacks.OnDelta; fn != nil {
 				pending = append(pending, func() { fn(newText) })
 			}
 		} else {
 			// Revision: the backend rewrote the partial; reset and resend.
-			c.emitted = lastText
+			c.emitted = last.Text
 			if fn := c.cfg.Callbacks.OnCommit; fn != nil {
 				pending = append(pending, func() { fn("") })
 			}
@@ -396,10 +395,10 @@ func (c *Client) updateSegments(segments []Segment) {
 				pending = append(pending, func() { fn(t) })
 			}
 		}
-	} else if lastText == c.emitted && !c.emittedIsCommitted {
+	} else if last.Completed && last.Text == c.emitted && !c.emittedIsCommitted { // text is repeated but not yet committed
 		c.emittedIsCommitted = true
 		if fn := c.cfg.Callbacks.OnCommit; fn != nil {
-			pending = append(pending, func() { fn(lastText) })
+			pending = append(pending, func() { fn(last.Text) })
 		}
 	}
 
