@@ -299,3 +299,123 @@ func TestUpdateSegmentsActivityTimestampNotUpdatedOnSameText(t *testing.T) {
 		t.Errorf("lastActivity changed on repeated identical text")
 	}
 }
+
+func TestUpdateSegmentsDoesNotAppendOverlappingCompleted(t *testing.T) {
+	c := newTestClient(Config{})
+	c.updateSegments([]Segment{{Start: 0, End: 2.0, Text: "first", Completed: true}})
+	// A completed segment that starts before the previous one ended must not be
+	// appended, even though its text differs.
+	c.updateSegments([]Segment{{Start: 1.0, End: 3.0, Text: "second", Completed: true}})
+
+	n := len(c.transcript)
+	if n != 1 {
+		t.Errorf("transcript has %d segments, want 1 (overlapping segment should be skipped)", n)
+	}
+}
+
+func TestUpdateSegmentsDoesNotAppendSameTextAfterGap(t *testing.T) {
+	c := newTestClient(Config{})
+	c.updateSegments([]Segment{{Start: 0, End: 1.0, Text: "repeat", Completed: true}})
+	// Non-overlapping start but identical text: still must not be appended.
+	c.updateSegments([]Segment{{Start: 1.0, End: 2.0, Text: "repeat", Completed: true}})
+
+	n := len(c.transcript)
+	if n != 1 {
+		t.Errorf("transcript has %d segments, want 1 (identical text should be skipped)", n)
+	}
+}
+
+func TestUpdateSegmentsAppendsMultipleCompletedInSingleBatch(t *testing.T) {
+	c := newTestClient(Config{})
+	c.updateSegments([]Segment{
+		{Start: 0, End: 1.0, Text: "first", Completed: true},
+		{Start: 1.0, End: 2.0, Text: "second", Completed: true},
+	})
+
+	n := len(c.transcript)
+	if n != 2 {
+		t.Errorf("transcript has %d segments, want 2", n)
+	}
+	if got := c.FinalTranscript(); got != "first second" {
+		t.Errorf("got %q, want %q", got, "first second")
+	}
+}
+
+func TestUpdateSegmentsCommitsWhenPartialBecomesCompleted(t *testing.T) {
+	var mu sync.Mutex
+	var commits []string
+	c := newTestClient(Config{
+		Callbacks: backends.BackendCallbacks{
+			OnCommit: func(text string) {
+				mu.Lock()
+				defer mu.Unlock()
+				commits = append(commits, text)
+			},
+		},
+	})
+
+	// The same single segment is first emitted as a partial, then completed.
+	c.updateSegments([]Segment{{Start: 0, End: 1, Text: "hello", Completed: false}})
+	c.updateSegments([]Segment{{Start: 0, End: 1, Text: "hello", Completed: true}})
+
+	if len(commits) != 1 {
+		t.Fatalf("got %d commit calls, want 1: %v", len(commits), commits)
+	}
+	if commits[0] != "hello" {
+		t.Errorf("commit[0] = %q, want %q", commits[0], "hello")
+	}
+}
+
+func TestUpdateSegmentsCommitsCompletedTextOnlyOnce(t *testing.T) {
+	var mu sync.Mutex
+	var commits []string
+	c := newTestClient(Config{
+		Callbacks: backends.BackendCallbacks{
+			OnCommit: func(text string) {
+				mu.Lock()
+				defer mu.Unlock()
+				commits = append(commits, text)
+			},
+		},
+	})
+
+	c.updateSegments([]Segment{{Start: 0, End: 1, Text: "hello", Completed: false}})
+	c.updateSegments([]Segment{{Start: 0, End: 1, Text: "hello", Completed: true}})
+	// The backend re-sends the same completed segment; it must not commit again.
+	c.updateSegments([]Segment{{Start: 0, End: 1, Text: "hello", Completed: true}})
+
+	if len(commits) != 1 {
+		t.Errorf("got %d commit calls, want 1 (repeated completed segment should not re-commit): %v", len(commits), commits)
+	}
+}
+
+func TestUpdateSegmentsNilCallbacksDoNotPanic(t *testing.T) {
+	c := newTestClient(Config{}) // no callbacks configured
+
+	// Exercise the delta, revision, commit and completion paths without panicking.
+	c.updateSegments([]Segment{{Start: 0, End: 1, Text: "hello", Completed: false}})
+	c.updateSegments([]Segment{{Start: 0, End: 1, Text: "hello world", Completed: false}})
+	c.updateSegments([]Segment{{Start: 0, End: 1, Text: "rewritten", Completed: false}})
+	c.updateSegments([]Segment{
+		{Start: 0, End: 1, Text: "rewritten", Completed: true},
+		{Start: 1, End: 2, Text: "next", Completed: false},
+	})
+}
+
+func TestUpdateSegmentsPartialIsReplacedByNewerPartial(t *testing.T) {
+	c := newTestClient(Config{})
+	c.updateSegments([]Segment{{Start: 0, End: 1, Text: "hello", Completed: false}})
+	c.updateSegments([]Segment{{Start: 0, End: 1, Text: "hello world", Completed: false}})
+
+	partial := c.partial
+
+	if partial == nil {
+		t.Fatal("partial = nil, want the latest partial segment")
+	}
+	if partial.Text != "hello world" {
+		t.Errorf("partial.Text = %q, want %q", partial.Text, "hello world")
+	}
+	if got := c.FinalTranscript(); got != "hello world" {
+		t.Errorf("got %q, want %q", got, "hello world")
+	}
+}
