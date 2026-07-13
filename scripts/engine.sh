@@ -24,4 +24,4 @@ python3 $SNAP/bin/run_server.py \
     --max_connection_time "$CLIENT_MAX_CONNECTION_TIME" \
     --omp_num_threads "$NPROC" 
 
-echo "Engine terminated."
+echo "Engine terminated.
