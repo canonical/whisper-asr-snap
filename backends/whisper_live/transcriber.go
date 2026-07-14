@@ -135,18 +135,6 @@ func (c *Client) waitForClose(ctx context.Context) {
 	}
 }
 
-// Finalize runs the end-of-stream handshake for live-streaming sessions where
-// the caller (not an in-process ffmpeg pipe) signals "no more audio". It waits
-// until the backend has been idle (so buffered audio is fully transcribed),
-// sends END_OF_AUDIO, then waits a short grace period for the backend to
-// deliver the final segment and close the connection.
-func (c *Client) Finalize(ctx context.Context) error {
-	c.waitUntilIdle(ctx)
-	_ = c.sendEndOfAudio()
-	c.waitForClose(ctx)
-	return nil
-}
-
 func (c *Client) streamClosedErr() error {
 	if msg := c.errorMessage(); msg != "" {
 		return fmt.Errorf("server error: %s", msg)
