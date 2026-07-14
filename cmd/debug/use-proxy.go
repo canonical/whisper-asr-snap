@@ -58,6 +58,7 @@ func NewUseProxyCmd() *cobra.Command {
 	cobraCmd.Flags().StringVar(&cmd.model, "model", "base", "model name to switch to")
 	cobraCmd.Flags().Float64Var(&cmd.realtimeFactor, "realtime-factor", 1.0, "factor to adjust real-time pacing of audio streaming")
 
+	cobraCmd.MarkFlagsMutuallyExclusive("unix-socket", "url")
 	return cobraCmd
 }
 
