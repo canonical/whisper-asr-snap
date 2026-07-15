@@ -369,9 +369,11 @@ func (c *Client) updateSegments(segments []Segment) {
 
 	if c.segmentID != newSegmentID {
 		// The backend started a new segment; commit the previous one.
-		completedText := segments[c.segmentID].Text
-		if fn := c.cfg.Callbacks.OnCommit; fn != nil {
-			pending = append(pending, func() { fn(completedText) })
+		if c.segmentID < len(segments) {
+			completedText := segments[c.segmentID].Text
+			if fn := c.cfg.Callbacks.OnCommit; fn != nil {
+				pending = append(pending, func() { fn(completedText) })
+			}
 		}
 		c.emitted = ""
 		c.emittedIsCommitted = false
