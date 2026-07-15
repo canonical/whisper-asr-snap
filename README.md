@@ -2,25 +2,11 @@
 
 Rely on existing transcription projects while exposing an UbuSTT-compliant API.
 
-## Building
+## Run the Server
 
-To build the UbuSTT proxy:
-
-```bash
-go build ./cmd/proxy
-```
-
-## Run The Server
-
-The server can bind both to a TCP Socket or a Unix Domain Socket:
+The server needs a running backend, and can bind either to a TCP Socket or a Unix Domain Socket:
 
 ### TCP mode
-
-Run with default host and port (`127.0.0.1:8080`):
-
-```bash
-go run ./cmd/proxy serve
-```
 
 Run with custom host and port:
 
@@ -42,7 +28,7 @@ Run bound to a Unix domain socket path:
 go run ./cmd/proxy serve --unix-socket /tmp/ubustt-proxy.sock
 ```
 
-When `--unix-socket` is set, `--host` and `--port` are ignored.
+When `--unix-socket` is set, the flags `--host` and `--port` are not allowed.
 
 Quick health check over Unix socket:
 
@@ -52,8 +38,16 @@ curl --unix-socket /tmp/ubustt-proxy.sock http://localhost/
 
 ### Backend configuration
 
-The server will reach a WhisperLive backend at its default address of `127.0.0.1:9090`. 
-This value can be changed by setting `--whisper-host` and `--backend-port`.
+The server will reach a running backend at the default address of `127.0.0.1:9090`. 
+This value can be changed by setting `--backend-host` and `--backend-port`.
+
+You can quickly launch a [WhisperLive](https://github.com/collabora/WhisperLive) backend via docker:
+
+```bash
+sudo docker run -e OMP_NUM_THREADS=$(nproc) -it -p 9090:9090 ghcr.io/collabora/whisperlive-cpu:latest 
+```
+
+For more information about launching a WhisperLive docker image on dedicated hardware, see the dedicated [documentation page](https://github.com/collabora/WhisperLive#whisper-live-server-in-docker).
 
 The default model and language can be changed by setting `--model` and `--language`.
 To restrict which models and languages are allowed, use `--allowed-models` and `--allowed-languages`.
@@ -61,7 +55,7 @@ To restrict which models and languages are allowed, use `--allowed-models` and `
 ```bash
 go run ./cmd/proxy serve \
 	--unix-socket /tmp/ubustt-proxy.sock \
-	--whisper-host 127.0.0.1 \
+	--backend-host 127.0.0.1 \
 	--backend-port 9090 \
 	--model small \
 	--language en \
@@ -106,9 +100,9 @@ final transcript:
 
 ### Prompting UbuSTT
 
-The `use-proxy` command to stream a local audio file to a running UbuSTT proxy server and print the transcription events as they arrive. The procedure requires `ffmpeg`.
+The `use-proxy` command streams a local audio file to a running UbuSTT proxy server and prints the transcription events as they arrive. The procedure requires `ffmpeg`.
 
-You can optionally set `--realtime-factor <float>` value to speed up audio processing.
+You can optionally set `--realtime-factor <float>` value to speed up audio streaming.
 
 Over TCP:
 
@@ -122,4 +116,4 @@ Over a Unix domain socket:
 go run ./cmd/debug use-proxy --unix-socket /tmp/ubustt-proxy.sock --audio data/samples/jfk.flac
 ```
 
-If the `--unix-socket` argument is used, `--url` is ignored.
+The `--unix-socket` and `--url` arguments are mutually exclusive and cannot be set at the same time.

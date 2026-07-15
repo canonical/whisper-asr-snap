@@ -55,6 +55,9 @@ func NewServeCmd() *cobra.Command {
 	cobraCmd.Flags().StringSliceVar(&cmd.allowedModels, "allowed-models", []string{"small"}, "Allowed model names")
 	cobraCmd.Flags().StringSliceVar(&cmd.allowedLanguages, "allowed-languages", []string{"en"}, "Allowed language codes")
 
+	cobraCmd.MarkFlagsMutuallyExclusive("unix-socket", "host")
+	cobraCmd.MarkFlagsMutuallyExclusive("unix-socket", "port")
+
 	return cobraCmd
 }
 

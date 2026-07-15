@@ -115,6 +115,8 @@ type Client struct {
 	segmentID          int
 	emitted            string
 	emittedIsCommitted bool
+	totalAudioDuration time.Duration
+	audioFinalized     bool
 }
 
 // Dial connects to the backend, sends the initial configuration and starts the
@@ -367,16 +369,22 @@ func (c *Client) updateSegments(segments []Segment) {
 
 	if c.segmentID != newSegmentID {
 		// The backend started a new segment; commit the previous one.
-		completedText := segments[c.segmentID].Text
-		if fn := c.cfg.Callbacks.OnCommit; fn != nil {
-			pending = append(pending, func() { fn(completedText) })
+		if c.segmentID < len(segments) {
+			completedText := segments[c.segmentID].Text
+			if fn := c.cfg.Callbacks.OnCommit; fn != nil {
+				pending = append(pending, func() { fn(completedText) })
+			}
 		}
 		c.emitted = ""
 		c.emittedIsCommitted = false
 		c.segmentID = newSegmentID
 	}
 
-	if !last.Completed && last.Text != c.emitted { // new partial text
+	isUnsentDelta := !last.Completed && last.Text != c.emitted
+	isUnsentCommit := last.Completed && !c.emittedIsCommitted
+	isRepeatedUncommittedDeltaAtEndOfAudio := last.Text == c.emitted && !c.emittedIsCommitted && last.End == c.totalAudioDuration.Seconds() && c.audioFinalized
+
+	if isUnsentDelta { // new partial text
 		c.emittedIsCommitted = false
 		if newText, ok := strings.CutPrefix(last.Text, c.emitted); ok && newText != "" {
 			// Extend: only the new suffix is novel.
@@ -395,7 +403,7 @@ func (c *Client) updateSegments(segments []Segment) {
 				pending = append(pending, func() { fn(t) })
 			}
 		}
-	} else if last.Completed && last.Text == c.emitted && !c.emittedIsCommitted { // text is repeated but not yet committed
+	} else if isUnsentCommit || isRepeatedUncommittedDeltaAtEndOfAudio {
 		c.emittedIsCommitted = true
 		if fn := c.cfg.Callbacks.OnCommit; fn != nil {
 			pending = append(pending, func() { fn(last.Text) })
@@ -442,6 +450,7 @@ func (c *Client) sendAudio(samples []float32) error {
 	for i, s := range samples {
 		binary.LittleEndian.PutUint32(buf[i*4:], math.Float32bits(s))
 	}
+	c.totalAudioDuration += time.Duration(len(samples)) * time.Second / time.Duration(c.cfg.SampleRate)
 	return c.write(websocket.BinaryMessage, buf)
 }
 
@@ -463,9 +472,16 @@ func (c *Client) SendPCM16(pcm []byte) error {
 	return c.sendAudio(pcm16ToFloat32(pcm))
 }
 
-// SendEndOfAudio signals the backend that the current stream is finished so it
-// flushes and emits any final segment. Note that WhisperLive treats this as the
-// end of the session and will close the connection afterwards.
+func (c *Client) Finalize(ctx context.Context) error {
+	c.mu.Lock()
+	c.audioFinalized = true
+	c.mu.Unlock()
+	c.waitUntilIdle(ctx)
+	_ = c.sendEndOfAudio()
+	c.waitForClose(ctx)
+	return nil
+}
+
 func (c *Client) SendEndOfAudio() error {
 	return c.sendEndOfAudio()
 }
