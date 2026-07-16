@@ -22,7 +22,8 @@ import (
 type useProxyCommand struct {
 	url            string
 	unixSocket     string
-	audioPath      string
+	audioFile      string
+	audioDevice    string
 	sampleRate     int
 	chunkBytes     int
 	timeoutSec     int
@@ -30,7 +31,8 @@ type useProxyCommand struct {
 	alreadyChanged bool
 	model          string
 
-	ctx *context.Context
+	isFileStream bool
+	ctx          *context.Context
 }
 
 // NewUseProxyCmd builds a small test client. It connects to a running
@@ -42,16 +44,17 @@ func NewUseProxyCmd() *cobra.Command {
 
 	cobraCmd := &cobra.Command{
 		Use:               "use-proxy",
-		Short:             "Stream an audio file to a Myna Adapter server and print transcriptions",
-		Long:              "Connect to a running Myna Adapter websocket server, stream a local audio file (decoded with ffmpeg) as input_audio_buffer.append events, commit, and print transcription deltas/completions. Requires ffmpeg.",
+		Short:             "Stream audio to a Myna Adapter server and print transcriptions",
+		Long:              "Connect to a running Myna Adapter websocket server, stream microphone input or a local audio file (decoded with ffmpeg) as input_audio_buffer.append events, commit, and print transcription deltas/completions. Requires ffmpeg.",
 		Args:              cobra.NoArgs,
 		ValidArgsFunction: cobra.NoFileCompletions,
 		RunE:              cmd.run,
 	}
 
-	cobraCmd.Flags().StringVar(&cmd.url, "url", "ws://127.0.0.1:8080/ws", "Myna Adapter websocket URL (ignored when --unix-socket is set)")
-	cobraCmd.Flags().StringVar(&cmd.unixSocket, "unix-socket", "", "path to a Unix domain socket to connect to (overrides --url)")
-	cobraCmd.Flags().StringVar(&cmd.audioPath, "audio", "test/samples/jfk.flac", "path to local audio file to stream")
+	cobraCmd.Flags().StringVar(&cmd.url, "url", "ws://127.0.0.1:8080/ws", "Myna Adapter websocket URL")
+	cobraCmd.Flags().StringVar(&cmd.unixSocket, "unix-socket", "", "path to a Unix domain socket to connect to")
+	cobraCmd.Flags().StringVar(&cmd.audioFile, "audio-file", "", "path to local audio file to stream. If no audio file is specified, microphone input will be used.")
+	cobraCmd.Flags().StringVar(&cmd.audioDevice, "audio-device", "default", "PulseAudio device to use for input")
 	cobraCmd.Flags().IntVar(&cmd.sampleRate, "rate", 16000, "sample rate to resample the audio to")
 	cobraCmd.Flags().IntVar(&cmd.chunkBytes, "chunk-bytes", 4096, "PCM16 bytes per append event")
 	cobraCmd.Flags().IntVar(&cmd.timeoutSec, "timeout-sec", 180, "overall command timeout in seconds")
@@ -59,12 +62,16 @@ func NewUseProxyCmd() *cobra.Command {
 	cobraCmd.Flags().Float64Var(&cmd.realtimeFactor, "realtime-factor", 1.0, "factor to adjust real-time pacing of audio streaming")
 
 	cobraCmd.MarkFlagsMutuallyExclusive("unix-socket", "url")
+	cobraCmd.MarkFlagsMutuallyExclusive("audio-file", "audio-device")
 	return cobraCmd
 }
 
 func (cmd *useProxyCommand) run(cobraCmd *cobra.Command, _ []string) error {
-	if _, err := os.Stat(cmd.audioPath); err != nil {
-		return fmt.Errorf("audio file not accessible: %w", err)
+	cmd.isFileStream = cmd.audioFile != ""
+	if cmd.isFileStream {
+		if _, err := os.Stat(cmd.audioFile); err != nil {
+			return fmt.Errorf("audio file not accessible: %w", err)
+		}
 	}
 	if strings.TrimSpace(cmd.url) == "" && strings.TrimSpace(cmd.unixSocket) == "" {
 		return errors.New("either --url or --unix-socket is required")
@@ -140,14 +147,21 @@ func (cmd *useProxyCommand) sendAudio(out io.Writer, conn *websocket.Conn) error
 // stream decodes the audio file to PCM16 mono with ffmpeg and sends it as
 // base64 input_audio_buffer.append events, paced at real time.
 func (cmd *useProxyCommand) stream(out io.Writer, conn *websocket.Conn) error {
-	ff := exec.CommandContext(*cmd.ctx, "ffmpeg",
+	ffmpeg_parameters := []string{
 		"-hide_banner", "-loglevel", "error",
-		"-i", cmd.audioPath,
 		"-ac", "1",
 		"-ar", fmt.Sprintf("%d", cmd.sampleRate),
 		"-f", "s16le",
 		"pipe:1",
-	)
+	}
+
+	if cmd.isFileStream {
+		ffmpeg_parameters = append([]string{"-i", cmd.audioFile}, ffmpeg_parameters...)
+	} else {
+		ffmpeg_parameters = append([]string{"-f", "pulse", "-i", cmd.audioDevice}, ffmpeg_parameters...)
+	}
+
+	ff := exec.CommandContext(*cmd.ctx, "ffmpeg", ffmpeg_parameters...)
 	stdout, err := ff.StdoutPipe()
 	if err != nil {
 		return fmt.Errorf("ffmpeg stdout pipe: %w", err)
@@ -159,7 +173,12 @@ func (cmd *useProxyCommand) stream(out io.Writer, conn *websocket.Conn) error {
 		return fmt.Errorf("start ffmpeg: %w", err)
 	}
 
-	fmt.Fprintf(out, "streaming %s\n", cmd.audioPath)
+	if cmd.isFileStream {
+		fmt.Fprintf(out, "streaming %s\n", cmd.audioFile)
+	} else {
+		fmt.Fprintf(out, "streaming from device %s\n", cmd.audioDevice)
+	}
+
 	reader := bufio.NewReader(stdout)
 	chunk := make([]byte, cmd.chunkBytes)
 
@@ -176,13 +195,15 @@ func (cmd *useProxyCommand) stream(out io.Writer, conn *websocket.Conn) error {
 			if err := conn.WriteMessage(websocket.TextMessage, msg); err != nil {
 				return fmt.Errorf("sending append: %w", err)
 			}
-			// Pace at real time: s16le mono => 2 bytes per sample.
-			samples := n / 2
-			pace := time.Duration(float64(samples) / float64(cmd.sampleRate) * float64(time.Second) / cmd.realtimeFactor)
-			select {
-			case <-(*cmd.ctx).Done():
-				return (*cmd.ctx).Err()
-			case <-time.After(pace):
+			if !cmd.isFileStream {
+				// Pace at real time: s16le mono => 2 bytes per sample.
+				samples := n / 2
+				pace := time.Duration(float64(samples) / float64(cmd.sampleRate) * float64(time.Second) / cmd.realtimeFactor)
+				select {
+				case <-(*cmd.ctx).Done():
+					return (*cmd.ctx).Err()
+				case <-time.After(pace):
+				}
 			}
 		}
 		if readErr != nil {
