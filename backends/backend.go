@@ -4,8 +4,6 @@ package backends
 
 import "context"
 
-// Backend is the interface a transcription backend must implement to be used by
-// a ubustt client.
 type Backend interface {
 	// WaitReady blocks until the backend is ready to receive audio.
 	WaitReady(ctx context.Context) error

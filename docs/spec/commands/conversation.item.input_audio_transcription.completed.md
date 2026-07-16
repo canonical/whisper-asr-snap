@@ -54,7 +54,7 @@ Server-to-client terminal event for a committed audio chunk. Contains the finali
 
 ## Notes from PDF Example Section
 
-The long OpenAI example includes extra fields such as `usage`, `event_id`, and `obfuscation` on related events. Those fields are not in the authoritative schema subset for UbuSTT and should be treated as optional/unknown unless UbuSTT explicitly adopts them.
+The long OpenAI example includes extra fields such as `usage`, `event_id`, and `obfuscation` on related events. Those fields are not in the authoritative schema subset for Myna and should be treated as optional/unknown unless Myna explicitly adopts them.
 
 ## Related Events
 

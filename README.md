@@ -65,7 +65,7 @@ go run ./cmd/whisperlive-adapter serve \
 
 ## Debugging
 
-This project includes a debug entry point to run inference directly against the backend or through a running instance of UbuSTT proxy.
+This project includes a debug entry point to run inference directly against the backend or through a running instance of the Myna Adapter.
 
 ### Prompting the backend
 
@@ -98,9 +98,9 @@ final transcript:
 <transcribed text>
 ```
 
-### Prompting UbuSTT
+### Prompting the Myna Adapter
 
-The `use-proxy` command streams a local audio file to a running UbuSTT proxy server and prints the transcription events as they arrive. The procedure requires `ffmpeg`.
+The `use-proxy` command streams a local audio file to a running Myna Adapter server and prints the transcription events as they arrive. The procedure requires `ffmpeg`.
 
 You can optionally set `--realtime-factor <float>` value to speed up audio streaming.
 

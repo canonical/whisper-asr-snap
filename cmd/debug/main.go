@@ -10,7 +10,7 @@ func NewRootCmd() *cobra.Command {
 	rootCmd := &cobra.Command{
 		Use:           "use-proxy",
 		Short:         "Debug client for testing",
-		Long:          "Connect to a running backend or to a running UbuSTT proxy to transcribe audio.",
+		Long:          "Connect to a running backend or to a running Myna Adapter server to transcribe audio.",
 		SilenceUsage:  true,
 		SilenceErrors: true,
 	}

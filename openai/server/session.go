@@ -13,10 +13,10 @@ import (
 	"github.com/gorilla/websocket"
 )
 
-// Session holds the per-connection state for a single UbuSTT user. Each session
+// Session holds the per-connection state for a single Myna user. Each session
 // owns a dedicated backend session: audio frames received from the user are
 // forwarded to the backend, and transcription results are translated into
-// UbuSTT events and pushed to the user.
+// OpenAI events and pushed to the user.
 type Session struct {
 	Connection *websocket.Conn
 
@@ -67,13 +67,13 @@ func (s *Session) Start(ctx context.Context) error {
 		return fmt.Errorf("sending session.created: %w", err)
 	}
 
-	// If the backend session ends (WhisperLive closed the connection, errored,
+	// If the backend session ends (Myna closed the connection, errored,
 	// or we tore it down), close the user connection too.
 	go s.watchBackend()
 	return nil
 }
 
-// watchBackend blocks until the WhisperLive session ends and then closes the
+// watchBackend blocks until the Myna session ends and then closes the
 // user-facing connection, unblocking the server read loop.
 func (s *Session) watchBackend() {
 	<-s.backend.Done()

@@ -33,8 +33,8 @@ type useProxyCommand struct {
 	ctx *context.Context
 }
 
-// NewUseProxyCmd builds a small UbuSTT test client. It connects to a running
-// UbuSTT websocket server, streams a local audio file as
+// NewUseProxyCmd builds a small test client. It connects to a running
+// Myna Adapter websocket server, streams a local audio file as
 // input_audio_buffer.append events paced in real time, then commits and prints
 // the transcription events as they arrive.
 func NewUseProxyCmd() *cobra.Command {
@@ -42,16 +42,16 @@ func NewUseProxyCmd() *cobra.Command {
 
 	cobraCmd := &cobra.Command{
 		Use:               "use-proxy",
-		Short:             "Stream an audio file to a UbuSTT server and print transcriptions",
-		Long:              "Connect to a running UbuSTT websocket server, stream a local audio file (decoded with ffmpeg) as input_audio_buffer.append events, commit, and print transcription deltas/completions. Requires ffmpeg.",
+		Short:             "Stream an audio file to a Myna Adapter server and print transcriptions",
+		Long:              "Connect to a running Myna Adapter websocket server, stream a local audio file (decoded with ffmpeg) as input_audio_buffer.append events, commit, and print transcription deltas/completions. Requires ffmpeg.",
 		Args:              cobra.NoArgs,
 		ValidArgsFunction: cobra.NoFileCompletions,
 		RunE:              cmd.run,
 	}
 
-	cobraCmd.Flags().StringVar(&cmd.url, "url", "ws://127.0.0.1:8080/ws", "UbuSTT websocket URL (ignored when --unix-socket is set)")
+	cobraCmd.Flags().StringVar(&cmd.url, "url", "ws://127.0.0.1:8080/ws", "Myna Adapter websocket URL (ignored when --unix-socket is set)")
 	cobraCmd.Flags().StringVar(&cmd.unixSocket, "unix-socket", "", "path to a Unix domain socket to connect to (overrides --url)")
-	cobraCmd.Flags().StringVar(&cmd.audioPath, "audio", "data/samples/jfk.flac", "path to local audio file to stream")
+	cobraCmd.Flags().StringVar(&cmd.audioPath, "audio", "test/samples/jfk.flac", "path to local audio file to stream")
 	cobraCmd.Flags().IntVar(&cmd.sampleRate, "rate", 16000, "sample rate to resample the audio to")
 	cobraCmd.Flags().IntVar(&cmd.chunkBytes, "chunk-bytes", 4096, "PCM16 bytes per append event")
 	cobraCmd.Flags().IntVar(&cmd.timeoutSec, "timeout-sec", 180, "overall command timeout in seconds")
@@ -95,7 +95,7 @@ func (cmd *useProxyCommand) run(cobraCmd *cobra.Command, _ []string) error {
 
 	conn, _, err := dialer.DialContext(ctx, cmd.url, nil)
 	if err != nil {
-		return fmt.Errorf("dial ubustt server: %w", err)
+		return fmt.Errorf("dial myna server: %w", err)
 	}
 	defer conn.Close()
 

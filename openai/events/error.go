@@ -15,7 +15,7 @@ func (m *Error) New() {
 	m.Type = "error"
 }
 
-// Error type / code constants as defined by the UbuSTT error model.
+// Error type / code constants as defined by the Myna error model.
 const (
 	ErrorTypeInvalidRequest = "invalid_request_error"
 	ErrorTypeServer         = "server_error"
