@@ -43,7 +43,7 @@ parts:
     plugin: go
     source: .
     build-snaps:
-      - go/latest/stable
+      - go/1.26/stable
 
   whisper-live:
     plugin: python
