@@ -32,7 +32,7 @@ type SessionData struct {
 }
 
 type SessionUpdate struct {
-	MessageBase
+	EventBase
 	Session SessionData `json:"session"`
 }
 

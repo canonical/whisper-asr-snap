@@ -1,7 +1,7 @@
 package events
 
 type ModelLoaded struct {
-	MessageBase
+	EventBase
 }
 
 func (m *ModelLoaded) New() {

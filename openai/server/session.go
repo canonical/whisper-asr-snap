@@ -96,7 +96,7 @@ func (s *Session) Close() error {
 // HandleMessage decodes a raw text frame and dispatches it to the handler that
 // owns the required client state.
 func (s *Session) HandleMessage(payload []byte) error {
-	msg, err := events.FromJson(payload)
+	event, err := events.FromJson(payload)
 	if err != nil {
 		return s.SendError(
 			events.ErrorTypeInvalidRequest,
@@ -105,18 +105,18 @@ func (s *Session) HandleMessage(payload []byte) error {
 		)
 	}
 
-	switch m := msg.(type) {
+	switch eventType := event.(type) {
 	case *events.SessionUpdate:
-		return s.handleSessionUpdate(m)
+		return s.handleSessionUpdate(eventType)
 	case *events.InputAudioBufferAppend:
-		return s.handleInputAudioBufferAppend(m)
+		return s.handleInputAudioBufferAppend(eventType)
 	case *events.InputAudioBufferCommit:
-		return s.handleInputAudioBufferCommit(m)
+		return s.handleInputAudioBufferCommit(eventType)
 	default:
 		return s.SendError(
 			events.ErrorTypeInvalidRequest,
 			events.ErrorCodeInvalidParameter,
-			fmt.Sprintf("unexpected message type: %T", m),
+			fmt.Sprintf("unexpected event type: %T", eventType),
 		)
 	}
 }
@@ -207,7 +207,7 @@ func (s *Session) handleSessionUpdate(m *events.SessionUpdate) error {
 	return s.send(events.NewSessionUpdated(s.backend.GetConfig()))
 }
 
-// Sends an error message on the user connection.
+// Sends an error event on the user connection.
 // The error is also returned to the caller for convenience.
 func (s *Session) SendError(errorType string, errorCode string, message string) error {
 	s.send(events.NewError(errorType, errorCode, message))
@@ -319,8 +319,8 @@ func (s *Session) onCommit(text string) {
 		log.Printf("Received onCommit after audio buffer finalized.\n")
 		// At this point we could close the connection and consider the session done
 		// but if we close the connection here, data is not flushed to the client and the
-		// transcription completed message we just sent is lost along the way
-		// so we let the client close the connection after receiving the transcription completed message
+		// transcription completed event we just sent is lost along the way
+		// so we let the client close the connection after receiving the transcription completed event
 	}
 }
 
@@ -329,7 +329,7 @@ func (s *Session) onModelLoaded() {
 	s.mu.Lock()
 	s.modelLoaded = true
 	s.mu.Unlock()
-	// Send a new ModelLoaded message to the user
+	// Send a new ModelLoaded event to the user
 	err := s.send(new(events.ModelLoaded))
 	if err != nil {
 		log.Printf("[WARN]: sending model loaded: %v", err)
@@ -341,18 +341,18 @@ func (s *Session) onModelUnloaded() {
 	s.mu.Lock()
 	s.modelLoaded = false
 	s.mu.Unlock()
-	// Send a new ModelUnloaded message to the user
+	// Send a new ModelUnloaded event to the user
 	err := s.send(new(events.ModelUnloaded))
 	if err != nil {
 		log.Printf("[WARN]: sending model unloaded: %v", err)
 	}
 }
 
-// send serializes an outbound message and writes it to the user websocket.
-func (s *Session) send(m events.Message) error {
+// send serializes an outbound event and writes it to the user websocket.
+func (s *Session) send(m events.Event) error {
 	data, err := events.ToJson(m)
 	if err != nil {
-		return fmt.Errorf("encoding message: %w", err)
+		return fmt.Errorf("encoding event: %w", err)
 	}
 	s.writeMu.Lock()
 	defer s.writeMu.Unlock()

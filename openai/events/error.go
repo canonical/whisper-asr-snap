@@ -7,7 +7,7 @@ type ErrorDetail struct {
 }
 
 type Error struct {
-	MessageBase
+	EventBase
 	Error ErrorDetail `json:"error"`
 }
 

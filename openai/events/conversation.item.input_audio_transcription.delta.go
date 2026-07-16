@@ -7,7 +7,7 @@ type DeltaLogprob struct {
 }
 
 type ConversationItemInputAudioTranscriptionDelta struct {
-	MessageBase
+	EventBase
 	Delta    string         `json:"delta"`
 	Logprobs []DeltaLogprob `json:"logprobs,omitempty"`
 }

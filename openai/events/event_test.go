@@ -41,7 +41,7 @@ func TestFromJsonSessionCreated(t *testing.T) {
 	// Check data type
 	got, ok := msg.(*SessionCreated)
 	if !ok {
-		t.Fatalf("message is %T, want *SessionCreated", msg)
+		t.Fatalf("event is %T, want *SessionCreated", msg)
 	}
 
 	// Check fields
@@ -77,8 +77,8 @@ func TestFromJsonUnknownType(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error for unknown type, got nil")
 	}
-	if !strings.Contains(err.Error(), "unknown message type") {
-		t.Errorf("error = %q, want to contain 'unknown message type'", err.Error())
+	if !strings.Contains(err.Error(), "unknown event type") {
+		t.Errorf("error = %q, want to contain 'unknown event type'", err.Error())
 	}
 }
 

@@ -7,7 +7,7 @@ type CompletedLogprob struct {
 }
 
 type ConversationItemInputAudioTranscriptionCompleted struct {
-	MessageBase
+	EventBase
 	Transcript string             `json:"transcript"`
 	Logprobs   []CompletedLogprob `json:"logprobs,omitempty"`
 }

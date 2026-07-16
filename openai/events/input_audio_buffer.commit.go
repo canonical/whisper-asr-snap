@@ -1,7 +1,7 @@
 package events
 
 type InputAudioBufferCommit struct {
-	MessageBase
+	EventBase
 }
 
 func (m *InputAudioBufferCommit) New() {

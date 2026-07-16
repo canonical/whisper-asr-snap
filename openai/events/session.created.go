@@ -3,7 +3,7 @@ package events
 import "myna-adapter/backends"
 
 type SessionCreated struct {
-	MessageBase
+	EventBase
 	Session SessionData `json:"session"`
 }
 
