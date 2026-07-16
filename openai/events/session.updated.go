@@ -1,18 +1,18 @@
-package messages
+package events
 
-import "ubustt-proxy/backends"
+import "myna-adapter/backends"
 
-type SessionCreated struct {
-	MessageBase
+type SessionUpdated struct {
+	EventBase
 	Session SessionData `json:"session"`
 }
 
-func (m *SessionCreated) New() {
-	m.Type = "session.created"
+func (m *SessionUpdated) New() {
+	m.Type = "session.updated"
 }
 
-func NewSessionCreated(cfg *backends.SessionConfig) *SessionCreated {
-	m := &SessionCreated{
+func NewSessionUpdated(cfg *backends.SessionConfig) *SessionUpdated {
+	m := &SessionUpdated{
 		Session: SessionData{
 			Type:         &cfg.Type,
 			Instructions: cfg.Instructions,

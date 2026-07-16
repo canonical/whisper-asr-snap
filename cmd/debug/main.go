@@ -8,16 +8,16 @@ func NewRootCmd() *cobra.Command {
 	cobra.EnableCommandSorting = false
 
 	rootCmd := &cobra.Command{
-		Use:           "use-proxy",
+		Use:           "debug",
 		Short:         "Debug client for testing",
-		Long:          "Connect to a running backend or to a running UbuSTT proxy to transcribe audio.",
+		Long:          "Connect to a running backend or to a running Myna Adapter server to transcribe audio.",
 		SilenceUsage:  true,
 		SilenceErrors: true,
 	}
 	rootCmd.CompletionOptions.HiddenDefaultCmd = true
 
 	rootCmd.AddCommand(NewUseBackendCmd())
-	rootCmd.AddCommand(NewUseProxyCmd())
+	rootCmd.AddCommand(NewUseAdapterCmd())
 	return rootCmd
 }
 

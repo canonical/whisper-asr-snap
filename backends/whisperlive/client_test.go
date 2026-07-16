@@ -1,10 +1,10 @@
 package whisperlive
 
 import (
+	"myna-adapter/backends"
 	"sync"
 	"testing"
 	"time"
-	"ubustt-proxy/backends"
 )
 
 // ── FinalTranscript ───────────────────────────────────────────────────────────

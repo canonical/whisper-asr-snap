@@ -1,4 +1,4 @@
-package messages
+package events
 
 import (
 	"fmt"
@@ -32,7 +32,7 @@ type SessionData struct {
 }
 
 type SessionUpdate struct {
-	MessageBase
+	EventBase
 	Session SessionData `json:"session"`
 }
 

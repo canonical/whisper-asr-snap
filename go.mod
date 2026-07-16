@@ -1,4 +1,4 @@
-module ubustt-proxy
+module myna-adapter
 
 go 1.26
 

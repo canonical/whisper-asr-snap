@@ -1,7 +1,7 @@
-package messages
+package events
 
 type ModelUnloaded struct {
-	MessageBase
+	EventBase
 }
 
 func (m *ModelUnloaded) New() {

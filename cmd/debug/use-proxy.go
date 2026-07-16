@@ -13,16 +13,17 @@ import (
 	"strings"
 	"time"
 
-	"ubustt-proxy/ubustt/messages"
+	"myna-adapter/openai/events"
 
 	"github.com/gorilla/websocket"
 	"github.com/spf13/cobra"
 )
 
-type useProxyCommand struct {
+type useAdapterCommand struct {
 	url            string
 	unixSocket     string
-	audioPath      string
+	audioFile      string
+	audioDevice    string
 	sampleRate     int
 	chunkBytes     int
 	timeoutSec     int
@@ -30,28 +31,30 @@ type useProxyCommand struct {
 	alreadyChanged bool
 	model          string
 
-	ctx *context.Context
+	isFileStream bool
+	ctx          *context.Context
 }
 
-// NewUseProxyCmd builds a small UbuSTT test client. It connects to a running
-// UbuSTT websocket server, streams a local audio file as
+// NewUseAdapterCmd builds a small test client. It connects to a running
+// Myna Adapter websocket server, streams a local audio file as
 // input_audio_buffer.append events paced in real time, then commits and prints
 // the transcription events as they arrive.
-func NewUseProxyCmd() *cobra.Command {
-	var cmd useProxyCommand
+func NewUseAdapterCmd() *cobra.Command {
+	var cmd useAdapterCommand
 
 	cobraCmd := &cobra.Command{
-		Use:               "use-proxy",
-		Short:             "Stream an audio file to a UbuSTT server and print transcriptions",
-		Long:              "Connect to a running UbuSTT websocket server, stream a local audio file (decoded with ffmpeg) as input_audio_buffer.append events, commit, and print transcription deltas/completions. Requires ffmpeg.",
+		Use:               "use-adapter",
+		Short:             "Stream audio to a Myna Adapter server and print transcriptions",
+		Long:              "Connect to a running Myna Adapter websocket server, stream microphone input or a local audio file (decoded with ffmpeg) as input_audio_buffer.append events, commit, and print transcription deltas/completions. Requires ffmpeg.",
 		Args:              cobra.NoArgs,
 		ValidArgsFunction: cobra.NoFileCompletions,
 		RunE:              cmd.run,
 	}
 
-	cobraCmd.Flags().StringVar(&cmd.url, "url", "ws://127.0.0.1:8080/ws", "UbuSTT websocket URL (ignored when --unix-socket is set)")
-	cobraCmd.Flags().StringVar(&cmd.unixSocket, "unix-socket", "", "path to a Unix domain socket to connect to (overrides --url)")
-	cobraCmd.Flags().StringVar(&cmd.audioPath, "audio", "data/samples/jfk.flac", "path to local audio file to stream")
+	cobraCmd.Flags().StringVar(&cmd.url, "url", "ws://127.0.0.1:8080/ws", "Myna Adapter websocket URL")
+	cobraCmd.Flags().StringVar(&cmd.unixSocket, "unix-socket", "", "path to a Unix domain socket to connect to")
+	cobraCmd.Flags().StringVar(&cmd.audioFile, "audio-file", "", "path to local audio file to stream. If no audio file is specified, microphone input will be used.")
+	cobraCmd.Flags().StringVar(&cmd.audioDevice, "audio-device", "default", "PulseAudio device to use for input")
 	cobraCmd.Flags().IntVar(&cmd.sampleRate, "rate", 16000, "sample rate to resample the audio to")
 	cobraCmd.Flags().IntVar(&cmd.chunkBytes, "chunk-bytes", 4096, "PCM16 bytes per append event")
 	cobraCmd.Flags().IntVar(&cmd.timeoutSec, "timeout-sec", 180, "overall command timeout in seconds")
@@ -59,12 +62,16 @@ func NewUseProxyCmd() *cobra.Command {
 	cobraCmd.Flags().Float64Var(&cmd.realtimeFactor, "realtime-factor", 1.0, "factor to adjust real-time pacing of audio streaming")
 
 	cobraCmd.MarkFlagsMutuallyExclusive("unix-socket", "url")
+	cobraCmd.MarkFlagsMutuallyExclusive("audio-file", "audio-device")
 	return cobraCmd
 }
 
-func (cmd *useProxyCommand) run(cobraCmd *cobra.Command, _ []string) error {
-	if _, err := os.Stat(cmd.audioPath); err != nil {
-		return fmt.Errorf("audio file not accessible: %w", err)
+func (cmd *useAdapterCommand) run(cobraCmd *cobra.Command, _ []string) error {
+	cmd.isFileStream = cmd.audioFile != ""
+	if cmd.isFileStream {
+		if _, err := os.Stat(cmd.audioFile); err != nil {
+			return fmt.Errorf("audio file not accessible: %w", err)
+		}
 	}
 	if strings.TrimSpace(cmd.url) == "" && strings.TrimSpace(cmd.unixSocket) == "" {
 		return errors.New("either --url or --unix-socket is required")
@@ -95,7 +102,7 @@ func (cmd *useProxyCommand) run(cobraCmd *cobra.Command, _ []string) error {
 
 	conn, _, err := dialer.DialContext(ctx, cmd.url, nil)
 	if err != nil {
-		return fmt.Errorf("dial ubustt server: %w", err)
+		return fmt.Errorf("dial myna server: %w", err)
 	}
 	defer conn.Close()
 
@@ -119,13 +126,13 @@ func (cmd *useProxyCommand) run(cobraCmd *cobra.Command, _ []string) error {
 	return nil
 }
 
-func (cmd *useProxyCommand) sendAudio(out io.Writer, conn *websocket.Conn) error {
+func (cmd *useAdapterCommand) sendAudio(out io.Writer, conn *websocket.Conn) error {
 	// Stream the audio, then commit to signal end of input.
 	if err := cmd.stream(out, conn); err != nil {
 		return fmt.Errorf("streaming audio: %w", err)
 	}
 
-	commit, err := messages.ToJson(&messages.InputAudioBufferCommit{})
+	commit, err := events.ToJson(&events.InputAudioBufferCommit{})
 	if err != nil {
 		return fmt.Errorf("encoding commit: %w", err)
 	}
@@ -139,15 +146,22 @@ func (cmd *useProxyCommand) sendAudio(out io.Writer, conn *websocket.Conn) error
 
 // stream decodes the audio file to PCM16 mono with ffmpeg and sends it as
 // base64 input_audio_buffer.append events, paced at real time.
-func (cmd *useProxyCommand) stream(out io.Writer, conn *websocket.Conn) error {
-	ff := exec.CommandContext(*cmd.ctx, "ffmpeg",
+func (cmd *useAdapterCommand) stream(out io.Writer, conn *websocket.Conn) error {
+	ffmpeg_parameters := []string{
 		"-hide_banner", "-loglevel", "error",
-		"-i", cmd.audioPath,
 		"-ac", "1",
 		"-ar", fmt.Sprintf("%d", cmd.sampleRate),
 		"-f", "s16le",
 		"pipe:1",
-	)
+	}
+
+	if cmd.isFileStream {
+		ffmpeg_parameters = append([]string{"-i", cmd.audioFile}, ffmpeg_parameters...)
+	} else {
+		ffmpeg_parameters = append([]string{"-f", "pulse", "-i", cmd.audioDevice}, ffmpeg_parameters...)
+	}
+
+	ff := exec.CommandContext(*cmd.ctx, "ffmpeg", ffmpeg_parameters...)
 	stdout, err := ff.StdoutPipe()
 	if err != nil {
 		return fmt.Errorf("ffmpeg stdout pipe: %w", err)
@@ -159,7 +173,12 @@ func (cmd *useProxyCommand) stream(out io.Writer, conn *websocket.Conn) error {
 		return fmt.Errorf("start ffmpeg: %w", err)
 	}
 
-	fmt.Fprintf(out, "streaming %s\n", cmd.audioPath)
+	if cmd.isFileStream {
+		fmt.Fprintf(out, "streaming %s\n", cmd.audioFile)
+	} else {
+		fmt.Fprintf(out, "streaming from device %s\n", cmd.audioDevice)
+	}
+
 	reader := bufio.NewReader(stdout)
 	chunk := make([]byte, cmd.chunkBytes)
 
@@ -167,7 +186,7 @@ func (cmd *useProxyCommand) stream(out io.Writer, conn *websocket.Conn) error {
 		n, readErr := io.ReadFull(reader, chunk)
 		if n > 0 {
 			payload := chunk[:n]
-			msg, err := messages.ToJson(&messages.InputAudioBufferAppend{
+			msg, err := events.ToJson(&events.InputAudioBufferAppend{
 				Audio: base64.StdEncoding.EncodeToString(payload),
 			})
 			if err != nil {
@@ -176,13 +195,15 @@ func (cmd *useProxyCommand) stream(out io.Writer, conn *websocket.Conn) error {
 			if err := conn.WriteMessage(websocket.TextMessage, msg); err != nil {
 				return fmt.Errorf("sending append: %w", err)
 			}
-			// Pace at real time: s16le mono => 2 bytes per sample.
-			samples := n / 2
-			pace := time.Duration(float64(samples) / float64(cmd.sampleRate) * float64(time.Second) / cmd.realtimeFactor)
-			select {
-			case <-(*cmd.ctx).Done():
-				return (*cmd.ctx).Err()
-			case <-time.After(pace):
+			if !cmd.isFileStream {
+				// Pace at real time: s16le mono => 2 bytes per sample.
+				samples := n / 2
+				pace := time.Duration(float64(samples) / float64(cmd.sampleRate) * float64(time.Second) / cmd.realtimeFactor)
+				select {
+				case <-(*cmd.ctx).Done():
+					return (*cmd.ctx).Err()
+				case <-time.After(pace):
+				}
 			}
 		}
 		if readErr != nil {
@@ -203,38 +224,38 @@ func (cmd *useProxyCommand) stream(out io.Writer, conn *websocket.Conn) error {
 }
 
 // readLoop prints inbound server events until the connection closes.
-func (cmd *useProxyCommand) readLoop(out io.Writer, conn *websocket.Conn) {
+func (cmd *useAdapterCommand) readLoop(out io.Writer, conn *websocket.Conn) {
 	for {
 		_, payload, err := conn.ReadMessage()
 		if err != nil {
 			return
 		}
 
-		msg, err := messages.FromJson(payload)
+		msg, err := events.FromJson(payload)
 		if err != nil {
 			fmt.Fprintf(out, "Error unmarshaling received payload: %v\n", string(payload))
 			continue
 		}
 
 		switch m := msg.(type) {
-		case *messages.SessionCreated:
+		case *events.SessionCreated:
 			fmt.Fprintf(out, "-> received [session.created]: %v\n", string(payload))
-		case *messages.SessionUpdated:
+		case *events.SessionUpdated:
 			fmt.Fprintf(out, "-> received [session.updated]: %v\n", string(payload))
-		case *messages.ConversationItemInputAudioTranscriptionDelta:
+		case *events.ConversationItemInputAudioTranscriptionDelta:
 			fmt.Fprintf(out, "-> received [delta]: %q\n", m.Delta)
-		case *messages.ModelLoaded:
+		case *events.ModelLoaded:
 			fmt.Fprintf(out, "-> received [model.loaded]\n")
 			// send a session update
 			if !cmd.alreadyChanged {
 				cmd.alreadyChanged = true
 				fmt.Fprintf(out, "<- sending  [session.update]...\n")
 				go func() {
-					update, err := messages.ToJson(&messages.SessionUpdate{
-						Session: messages.SessionData{
-							Audio: &messages.SessionAudio{
-								Input: &messages.SessionAudioInput{
-									Transcription: &messages.SessionTranscription{
+					update, err := events.ToJson(&events.SessionUpdate{
+						Session: events.SessionData{
+							Audio: &events.SessionAudio{
+								Input: &events.SessionAudioInput{
+									Transcription: &events.SessionTranscription{
 										Model: new(cmd.model),
 									},
 								},
@@ -260,11 +281,11 @@ func (cmd *useProxyCommand) readLoop(out io.Writer, conn *websocket.Conn) {
 					fmt.Fprintln(out, "Audio committed, waiting for final transcription")
 				}()
 			}
-		case *messages.ModelUnloaded:
+		case *events.ModelUnloaded:
 			fmt.Fprintf(out, "-> received [model.unloaded]\n")
-		case *messages.ConversationItemInputAudioTranscriptionCompleted:
+		case *events.ConversationItemInputAudioTranscriptionCompleted:
 			fmt.Fprintf(out, "-> received [completed]: %q\n", m.Transcript)
-		case *messages.Error:
+		case *events.Error:
 			fmt.Fprintf(out, "-> received [error]: %s/%s: %s\n", m.Error.Type, m.Error.Code, m.Error.Message)
 		default:
 			fmt.Fprintf(out, "[%T]\n", m)

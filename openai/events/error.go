@@ -1,4 +1,4 @@
-package messages
+package events
 
 type ErrorDetail struct {
 	Type    string `json:"type"`
@@ -7,7 +7,7 @@ type ErrorDetail struct {
 }
 
 type Error struct {
-	MessageBase
+	EventBase
 	Error ErrorDetail `json:"error"`
 }
 
@@ -15,7 +15,7 @@ func (m *Error) New() {
 	m.Type = "error"
 }
 
-// Error type / code constants as defined by the UbuSTT error model.
+// Error type / code constants as defined by the Myna error model.
 const (
 	ErrorTypeInvalidRequest = "invalid_request_error"
 	ErrorTypeServer         = "server_error"

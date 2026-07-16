@@ -1,14 +1,10 @@
-# UbuSTT WebSocket API Spec Notes
+# OpenAI WebSocket API Spec Notes
 
-This directory contains implementation-oriented notes extracted from:
+This directory contains AI-generated documentation for the Myna subset of OpenAI specification.
 
-- `IE115 - Ubuntu Speech to Text (UbuSTT) WebSocket API.pdf`
+## What Myna Implements
 
-The goal is to turn the PDF into practical engineering documentation for future implementation work in this repository.
-
-## What UbuSTT Implements
-
-UbuSTT is a **subset-compatible** interface of the OpenAI Realtime transcription protocol with local-first behavior.
+Myna is a **subset-compatible** interface of the OpenAI Realtime transcription protocol with local-first behavior.
 
 Key points:
 
@@ -24,9 +20,9 @@ According to the spec, notable deviations are:
 
 - No required Authorization header.
 - No required session model query parameter in URL.
-- Turn detection defaults differ: OpenAI defaults to `server_vad` behavior for conversational mode, UbuSTT has turn detection disabled by default.
+- Turn detection defaults differ: OpenAI defaults to `server_vad` behavior for conversational mode, Myna has turn detection disabled by default.
 
-The PDF also contains an "Example using OpenAI Realtime API" with many additional events. Those examples are informative, but not all events are in scope for UbuSTT.
+The PDF also contains an "Example using OpenAI Realtime API" with many additional events. Those examples are informative, but not all events are in scope for Myna.
 
 ## Supported Event Types (Authoritative)
 
@@ -101,7 +97,7 @@ From the schema text in the PDF:
 
 ## Important Scope Note for Implementers
 
-The OpenAI example section in the PDF includes extra events NOT in scope for UbuSTT, such as:
+The OpenAI example section in the PDF includes extra events NOT in scope for Myna, such as:
 
 - `input_audio_buffer.speech_started`
 - `input_audio_buffer.speech_stopped`

@@ -9,9 +9,9 @@ import (
 	"syscall"
 	"time"
 
-	"ubustt-proxy/backends"
-	whisperlive "ubustt-proxy/backends/whisper_live"
-	"ubustt-proxy/ubustt/server"
+	"myna-adapter/backends"
+	"myna-adapter/backends/whisperlive"
+	"myna-adapter/openai/server"
 
 	"github.com/spf13/cobra"
 )
@@ -21,7 +21,6 @@ type serveCommand struct {
 	port       int
 	unixSocket string
 
-	backend          string
 	backendHost      string
 	backendPort      int
 	defaultModel     string
@@ -36,7 +35,7 @@ func NewServeCmd() *cobra.Command {
 	cobraCmd := &cobra.Command{
 		Use:               "serve",
 		Short:             "Start the websocket server",
-		Long:              "Start a UbuSTT websocket server that proxies each connection to a Whisper Live transcription backend.",
+		Long:              "Start an OpenAI transcription API websocket server that adapts each connection to a Whisper Live transcription backend.",
 		Args:              cobra.NoArgs,
 		ValidArgsFunction: cobra.NoFileCompletions,
 		RunE:              cmd.run,
@@ -46,7 +45,6 @@ func NewServeCmd() *cobra.Command {
 	cobraCmd.Flags().IntVar(&cmd.port, "port", 8080, "port to listen on")
 	cobraCmd.Flags().StringVar(&cmd.unixSocket, "unix-socket", "", "path to a Unix domain socket to bind (overrides --host/--port)")
 
-	cobraCmd.Flags().StringVar(&cmd.backend, "backend", "whisper_live", "backend to use (only 'whisper_live' is supported)")
 	cobraCmd.Flags().StringVar(&cmd.backendHost, "backend-host", "127.0.0.1", "The host the backend is running on")
 	cobraCmd.Flags().IntVar(&cmd.backendPort, "backend-port", 9090, "The port the backend is running on")
 
@@ -62,11 +60,6 @@ func NewServeCmd() *cobra.Command {
 }
 
 func (cmd *serveCommand) validate() error {
-	// Validate that backend is supported
-	if cmd.backend != "whisper_live" { // TODO: have a list of supported backend names
-		return fmt.Errorf("unsupported backend: %s", cmd.backend)
-	}
-
 	// Validate that default model is in allowed models
 	if !slices.Contains(cmd.allowedModels, cmd.defaultModel) {
 		return fmt.Errorf("default-model %q is not in allowed-models: %v", cmd.defaultModel, cmd.allowedModels)

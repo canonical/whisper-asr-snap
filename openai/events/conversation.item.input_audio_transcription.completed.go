@@ -1,4 +1,4 @@
-package messages
+package events
 
 type CompletedLogprob struct {
 	Token   string  `json:"token"`
@@ -7,7 +7,7 @@ type CompletedLogprob struct {
 }
 
 type ConversationItemInputAudioTranscriptionCompleted struct {
-	MessageBase
+	EventBase
 	Transcript string             `json:"transcript"`
 	Logprobs   []CompletedLogprob `json:"logprobs,omitempty"`
 }

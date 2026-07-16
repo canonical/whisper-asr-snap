@@ -1,4 +1,4 @@
-package messages
+package events
 
 type DeltaLogprob struct {
 	Token   string  `json:"token"`
@@ -7,7 +7,7 @@ type DeltaLogprob struct {
 }
 
 type ConversationItemInputAudioTranscriptionDelta struct {
-	MessageBase
+	EventBase
 	Delta    string         `json:"delta"`
 	Logprobs []DeltaLogprob `json:"logprobs,omitempty"`
 }

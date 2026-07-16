@@ -1,7 +1,7 @@
-package messages
+package events
 
 type InputAudioBufferAppend struct {
-	MessageBase
+	EventBase
 	Audio string `json:"audio"`
 }
 

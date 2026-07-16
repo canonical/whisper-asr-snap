@@ -1,6 +1,6 @@
-# UbuSTT Proxy
+# Myna Adapter
 
-Rely on existing transcription projects while exposing an UbuSTT-compliant API.
+Rely on existing transcription projects while exposing an OpenAI-compliant transcription API.
 
 ## Run the Server
 
@@ -11,7 +11,7 @@ The server needs a running backend, and can bind either to a TCP Socket or a Uni
 Run with custom host and port:
 
 ```bash
-go run ./cmd/proxy serve --host 0.0.0.0 --port 8080
+go run ./cmd/whisperlive-adapter serve --host 0.0.0.0 --port 8080
 ```
 
 Quick health check:
@@ -25,7 +25,7 @@ curl http://127.0.0.1:8080/
 Run bound to a Unix domain socket path:
 
 ```bash
-go run ./cmd/proxy serve --unix-socket /tmp/ubustt-proxy.sock
+go run ./cmd/whisperlive-adapter serve --unix-socket /tmp/myna-adapter.sock
 ```
 
 When `--unix-socket` is set, the flags `--host` and `--port` are not allowed.
@@ -33,7 +33,7 @@ When `--unix-socket` is set, the flags `--host` and `--port` are not allowed.
 Quick health check over Unix socket:
 
 ```bash
-curl --unix-socket /tmp/ubustt-proxy.sock http://localhost/
+curl --unix-socket /tmp/myna-adapter.sock http://localhost/
 ```
 
 ### Backend configuration
@@ -53,8 +53,8 @@ The default model and language can be changed by setting `--model` and `--langua
 To restrict which models and languages are allowed, use `--allowed-models` and `--allowed-languages`.
 
 ```bash
-go run ./cmd/proxy serve \
-	--unix-socket /tmp/ubustt-proxy.sock \
+go run ./cmd/whisperlive-adapter serve \
+	--unix-socket /tmp/myna-adapter.sock \
 	--backend-host 127.0.0.1 \
 	--backend-port 9090 \
 	--model small \
@@ -65,7 +65,7 @@ go run ./cmd/proxy serve \
 
 ## Debugging
 
-This project includes a debug entry point to run inference directly against the backend or through a running instance of UbuSTT proxy.
+This project includes a debug entry point to run inference directly against the backend or through a running instance of the Myna Adapter.
 
 ### Prompting the backend
 
@@ -74,7 +74,7 @@ The `use-backend` command connects directly to a backend and prints the final tr
 Basic usage:
 
 ```bash
-go run ./cmd/debug use-backend --audio data/samples/jfk.flac
+go run ./cmd/debug use-backend --audio test/samples/jfk.flac
 ```
 
 Example with custom model, language, and timeout:
@@ -83,7 +83,7 @@ Example with custom model, language, and timeout:
 go run ./cmd/debug use-backend \
 	--host 127.0.0.1 \
 	--port 9090 \
-	--audio data/samples/jfk.flac \
+	--audio test/samples/jfk.flac \
 	--model small \
 	--lang en \
 	--timeout-sec 180
@@ -93,27 +93,47 @@ Expected output shape:
 
 ```text
 connecting to whisper live at 127.0.0.1:9090
-streaming audio file: data/samples/jfk.flac
+streaming audio file: test/samples/jfk.flac
 final transcript:
 <transcribed text>
 ```
 
-### Prompting UbuSTT
+### Prompting the Myna Adapter
 
-The `use-proxy` command streams a local audio file to a running UbuSTT proxy server and prints the transcription events as they arrive. The procedure requires `ffmpeg`.
+The `use-adapter` command streams audio to a running Myna Adapter server and prints the transcription events as they arrive. The procedure requires `ffmpeg`.
 
-You can optionally set `--realtime-factor <float>` value to speed up audio streaming.
-
-Over TCP:
+**Run over TCP**:
 
 ```bash
-go run ./cmd/debug use-proxy --url ws://127.0.0.1:8080/ws --audio data/samples/jfk.flac
+go run ./cmd/debug use-adapter --url ws://127.0.0.1:8080/ws
 ```
 
-Over a Unix domain socket:
+**Run over a Unix domain socket**:
 
 ```bash
-go run ./cmd/debug use-proxy --unix-socket /tmp/ubustt-proxy.sock --audio data/samples/jfk.flac
+go run ./cmd/debug use-adapter --unix-socket /tmp/myna-adapter.sock
 ```
 
-The `--unix-socket` and `--url` arguments are mutually exclusive and cannot be set at the same time.
+#### Choosing the recording device
+
+The application will open the default streaming device, but you can optionally override that by specifiyng the `--audio-device` argument:
+
+```bash
+go run ./cmd/debug use-adapter --audio-device alsa_input.pci-0000_c4_00.6.Hi
+```
+
+The available devices can be listed by running `pactl list sources`.
+
+> **NOTE**: the `--unix-socket` and `--url` arguments are mutually exclusive and cannot be set at the same time.
+
+#### Audio file streaming
+
+To enable more repducible tests you can also stream audio from a local file, just set the `--audio-file` argument to the file path:
+
+```bash
+go run ./cmd/debug use-adapter --unix-socket /tmp/myna-adapter.sock --audio-file test/samples/jfk.flac --realtime-factor 3.0
+```
+
+The `--realtime-factor` realtime argument is an optional parameter used to speed up transcription at a rate higher than realtime.
+
+> **NOTE**: the `--audio-device` and `--audio-file` arguments are mutually exclusive and cannot be set at the same time.

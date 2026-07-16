@@ -1,26 +1,26 @@
-package messages
+package events
 
 import (
 	"encoding/json"
 	"fmt"
 )
 
-type MessageBase struct {
+type EventBase struct {
 	Type string `json:"type"`
 }
 
-type Message interface {
+type Event interface {
 	New()
 }
 
-func FromJson(jsonData []byte) (Message, error) {
-	var msg MessageBase
+func FromJson(jsonData []byte) (Event, error) {
+	var msg EventBase
 	err := json.Unmarshal(jsonData, &msg)
 	if err != nil {
 		return nil, fmt.Errorf("unmarshaling JSON: %w", err)
 	}
 
-	var dst Message
+	var dst Event
 	switch msg.Type {
 
 	case "session.created":
@@ -44,7 +44,7 @@ func FromJson(jsonData []byte) (Message, error) {
 	case "error":
 		dst = new(Error)
 	default:
-		return nil, fmt.Errorf("unknown message type: %s", msg.Type)
+		return nil, fmt.Errorf("unknown event type: %s", msg.Type)
 	}
 
 	if err := json.Unmarshal(jsonData, dst); err != nil {
@@ -53,10 +53,10 @@ func FromJson(jsonData []byte) (Message, error) {
 	return dst, nil
 }
 
-// ToJson serializes an outbound message to its JSON wire form. It calls New() to
+// ToJson serializes an outbound event to its JSON wire form. It calls New() to
 // guarantee the "type" discriminator is populated regardless of how the value
 // was constructed.
-func ToJson(m Message) ([]byte, error) {
+func ToJson(m Event) ([]byte, error) {
 	m.New()
 	data, err := json.Marshal(m)
 	if err != nil {
