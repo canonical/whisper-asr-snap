@@ -39,7 +39,7 @@ parts:
       mkdir -p "$CRAFT_PART_INSTALL"/models
       cp -rf --archive --link --no-dereference faster-whisper-base "$CRAFT_PART_INSTALL"/models/faster-whisper-base
 
-  ubustt-proxy:
+  myna-adapter:
     plugin: go
     source: .
     build-snaps:
