@@ -10,8 +10,8 @@ import (
 	"strconv"
 	"sync"
 
-	"ubustt-proxy/backends"
-	"ubustt-proxy/ubustt/messages"
+	"myna-adapter/backends"
+	"myna-adapter/openai/events"
 
 	"github.com/gorilla/websocket"
 )
@@ -133,8 +133,8 @@ func (s *WebSocketServer) HandleWebSocket(w http.ResponseWriter, r *http.Request
 	if err := session.Start(r.Context()); err != nil {
 		fmt.Printf("starting client session: %v\n", err)
 		_ = session.SendError(
-			messages.ErrorTypeServer,
-			messages.ErrorCodeServerError,
+			events.ErrorTypeServer,
+			events.ErrorCodeServerError,
 			"failed to start session",
 		)
 		return
@@ -151,8 +151,8 @@ func (s *WebSocketServer) HandleWebSocket(w http.ResponseWriter, r *http.Request
 		case websocket.BinaryMessage:
 			// Send error for unsupported binary frames
 			_ = session.SendError(
-				messages.ErrorTypeInvalidRequest,
-				messages.ErrorCodeInvalidParameter,
+				events.ErrorTypeInvalidRequest,
+				events.ErrorCodeInvalidParameter,
 				"binary messages are unsupported",
 			)
 

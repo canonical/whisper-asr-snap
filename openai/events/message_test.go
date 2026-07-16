@@ -1,10 +1,10 @@
-package messages
+package events
 
 import (
 	"encoding/json"
+	"myna-adapter/backends"
 	"strings"
 	"testing"
-	"ubustt-proxy/backends"
 )
 
 func TestFromJsonSessionCreated(t *testing.T) {

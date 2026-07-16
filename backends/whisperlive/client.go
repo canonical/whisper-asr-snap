@@ -16,6 +16,7 @@ import (
 	"fmt"
 	"log"
 	"math"
+	"myna-adapter/backends"
 	"net/url"
 	"os"
 	"slices"
@@ -23,7 +24,6 @@ import (
 	"strings"
 	"sync"
 	"time"
-	"ubustt-proxy/backends"
 
 	"github.com/gorilla/websocket"
 )

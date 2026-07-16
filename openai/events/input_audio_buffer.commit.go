@@ -1,4 +1,4 @@
-package messages
+package events
 
 type InputAudioBufferCommit struct {
 	MessageBase

@@ -1,4 +1,4 @@
-package messages
+package events
 
 type DeltaLogprob struct {
 	Token   string  `json:"token"`

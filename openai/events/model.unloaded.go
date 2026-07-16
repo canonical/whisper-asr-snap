@@ -1,4 +1,4 @@
-package messages
+package events
 
 type ModelUnloaded struct {
 	MessageBase

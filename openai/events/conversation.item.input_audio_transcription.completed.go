@@ -1,4 +1,4 @@
-package messages
+package events
 
 type CompletedLogprob struct {
 	Token   string  `json:"token"`

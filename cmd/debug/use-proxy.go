@@ -13,7 +13,7 @@ import (
 	"strings"
 	"time"
 
-	"ubustt-proxy/ubustt/messages"
+	"myna-adapter/openai/events"
 
 	"github.com/gorilla/websocket"
 	"github.com/spf13/cobra"
@@ -125,7 +125,7 @@ func (cmd *useProxyCommand) sendAudio(out io.Writer, conn *websocket.Conn) error
 		return fmt.Errorf("streaming audio: %w", err)
 	}
 
-	commit, err := messages.ToJson(&messages.InputAudioBufferCommit{})
+	commit, err := events.ToJson(&events.InputAudioBufferCommit{})
 	if err != nil {
 		return fmt.Errorf("encoding commit: %w", err)
 	}
@@ -167,7 +167,7 @@ func (cmd *useProxyCommand) stream(out io.Writer, conn *websocket.Conn) error {
 		n, readErr := io.ReadFull(reader, chunk)
 		if n > 0 {
 			payload := chunk[:n]
-			msg, err := messages.ToJson(&messages.InputAudioBufferAppend{
+			msg, err := events.ToJson(&events.InputAudioBufferAppend{
 				Audio: base64.StdEncoding.EncodeToString(payload),
 			})
 			if err != nil {
@@ -210,31 +210,31 @@ func (cmd *useProxyCommand) readLoop(out io.Writer, conn *websocket.Conn) {
 			return
 		}
 
-		msg, err := messages.FromJson(payload)
+		msg, err := events.FromJson(payload)
 		if err != nil {
 			fmt.Fprintf(out, "Error unmarshaling received payload: %v\n", string(payload))
 			continue
 		}
 
 		switch m := msg.(type) {
-		case *messages.SessionCreated:
+		case *events.SessionCreated:
 			fmt.Fprintf(out, "-> received [session.created]: %v\n", string(payload))
-		case *messages.SessionUpdated:
+		case *events.SessionUpdated:
 			fmt.Fprintf(out, "-> received [session.updated]: %v\n", string(payload))
-		case *messages.ConversationItemInputAudioTranscriptionDelta:
+		case *events.ConversationItemInputAudioTranscriptionDelta:
 			fmt.Fprintf(out, "-> received [delta]: %q\n", m.Delta)
-		case *messages.ModelLoaded:
+		case *events.ModelLoaded:
 			fmt.Fprintf(out, "-> received [model.loaded]\n")
 			// send a session update
 			if !cmd.alreadyChanged {
 				cmd.alreadyChanged = true
 				fmt.Fprintf(out, "<- sending  [session.update]...\n")
 				go func() {
-					update, err := messages.ToJson(&messages.SessionUpdate{
-						Session: messages.SessionData{
-							Audio: &messages.SessionAudio{
-								Input: &messages.SessionAudioInput{
-									Transcription: &messages.SessionTranscription{
+					update, err := events.ToJson(&events.SessionUpdate{
+						Session: events.SessionData{
+							Audio: &events.SessionAudio{
+								Input: &events.SessionAudioInput{
+									Transcription: &events.SessionTranscription{
 										Model: new(cmd.model),
 									},
 								},
@@ -260,11 +260,11 @@ func (cmd *useProxyCommand) readLoop(out io.Writer, conn *websocket.Conn) {
 					fmt.Fprintln(out, "Audio committed, waiting for final transcription")
 				}()
 			}
-		case *messages.ModelUnloaded:
+		case *events.ModelUnloaded:
 			fmt.Fprintf(out, "-> received [model.unloaded]\n")
-		case *messages.ConversationItemInputAudioTranscriptionCompleted:
+		case *events.ConversationItemInputAudioTranscriptionCompleted:
 			fmt.Fprintf(out, "-> received [completed]: %q\n", m.Transcript)
-		case *messages.Error:
+		case *events.Error:
 			fmt.Fprintf(out, "-> received [error]: %s/%s: %s\n", m.Error.Type, m.Error.Code, m.Error.Message)
 		default:
 			fmt.Fprintf(out, "[%T]\n", m)

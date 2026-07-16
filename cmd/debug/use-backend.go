@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	whisperlive "ubustt-proxy/backends/whisper_live"
+	"myna-adapter/backends/whisperlive"
 
 	"github.com/spf13/cobra"
 )

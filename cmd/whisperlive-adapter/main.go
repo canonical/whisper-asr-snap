@@ -8,9 +8,9 @@ func NewRootCmd() *cobra.Command {
 	cobra.EnableCommandSorting = false
 
 	rootCmd := &cobra.Command{
-		Use:           "ubustt-proxy",
-		Short:         "A small websocket server for proxying transcription streams",
-		Long:          "Start and manage the UbuSTT websocket server.",
+		Use:           "whisperlive-adapter",
+		Short:         "An OpenAI transcription adapter leveraging Whisper Live as a backend.",
+		Long:          "Launch and manage an OpenAI transcription API server that leverages Whisper Live as a backend.",
 		SilenceUsage:  true,
 		SilenceErrors: true,
 	}

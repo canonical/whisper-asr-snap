@@ -1,4 +1,4 @@
-package messages
+package events
 
 type ErrorDetail struct {
 	Type    string `json:"type"`
