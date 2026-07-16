@@ -19,7 +19,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-type useProxyCommand struct {
+type useAdapterCommand struct {
 	url            string
 	unixSocket     string
 	audioFile      string
@@ -35,15 +35,15 @@ type useProxyCommand struct {
 	ctx          *context.Context
 }
 
-// NewUseProxyCmd builds a small test client. It connects to a running
+// NewUseAdapterCmd builds a small test client. It connects to a running
 // Myna Adapter websocket server, streams a local audio file as
 // input_audio_buffer.append events paced in real time, then commits and prints
 // the transcription events as they arrive.
-func NewUseProxyCmd() *cobra.Command {
-	var cmd useProxyCommand
+func NewUseAdapterCmd() *cobra.Command {
+	var cmd useAdapterCommand
 
 	cobraCmd := &cobra.Command{
-		Use:               "use-proxy",
+		Use:               "use-adapter",
 		Short:             "Stream audio to a Myna Adapter server and print transcriptions",
 		Long:              "Connect to a running Myna Adapter websocket server, stream microphone input or a local audio file (decoded with ffmpeg) as input_audio_buffer.append events, commit, and print transcription deltas/completions. Requires ffmpeg.",
 		Args:              cobra.NoArgs,
@@ -66,7 +66,7 @@ func NewUseProxyCmd() *cobra.Command {
 	return cobraCmd
 }
 
-func (cmd *useProxyCommand) run(cobraCmd *cobra.Command, _ []string) error {
+func (cmd *useAdapterCommand) run(cobraCmd *cobra.Command, _ []string) error {
 	cmd.isFileStream = cmd.audioFile != ""
 	if cmd.isFileStream {
 		if _, err := os.Stat(cmd.audioFile); err != nil {
@@ -126,7 +126,7 @@ func (cmd *useProxyCommand) run(cobraCmd *cobra.Command, _ []string) error {
 	return nil
 }
 
-func (cmd *useProxyCommand) sendAudio(out io.Writer, conn *websocket.Conn) error {
+func (cmd *useAdapterCommand) sendAudio(out io.Writer, conn *websocket.Conn) error {
 	// Stream the audio, then commit to signal end of input.
 	if err := cmd.stream(out, conn); err != nil {
 		return fmt.Errorf("streaming audio: %w", err)
@@ -146,7 +146,7 @@ func (cmd *useProxyCommand) sendAudio(out io.Writer, conn *websocket.Conn) error
 
 // stream decodes the audio file to PCM16 mono with ffmpeg and sends it as
 // base64 input_audio_buffer.append events, paced at real time.
-func (cmd *useProxyCommand) stream(out io.Writer, conn *websocket.Conn) error {
+func (cmd *useAdapterCommand) stream(out io.Writer, conn *websocket.Conn) error {
 	ffmpeg_parameters := []string{
 		"-hide_banner", "-loglevel", "error",
 		"-ac", "1",
@@ -224,7 +224,7 @@ func (cmd *useProxyCommand) stream(out io.Writer, conn *websocket.Conn) error {
 }
 
 // readLoop prints inbound server events until the connection closes.
-func (cmd *useProxyCommand) readLoop(out io.Writer, conn *websocket.Conn) {
+func (cmd *useAdapterCommand) readLoop(out io.Writer, conn *websocket.Conn) {
 	for {
 		_, payload, err := conn.ReadMessage()
 		if err != nil {

@@ -100,18 +100,18 @@ final transcript:
 
 ### Prompting the Myna Adapter
 
-The `use-proxy` command streams audio to a running Myna Adapter server and prints the transcription events as they arrive. The procedure requires `ffmpeg`.
+The `use-adapter` command streams audio to a running Myna Adapter server and prints the transcription events as they arrive. The procedure requires `ffmpeg`.
 
 **Run over TCP**:
 
 ```bash
-go run ./cmd/debug use-proxy --url ws://127.0.0.1:8080/ws
+go run ./cmd/debug use-adapter --url ws://127.0.0.1:8080/ws
 ```
 
 **Run over a Unix domain socket**:
 
 ```bash
-go run ./cmd/debug use-proxy --unix-socket /tmp/myna-adapter.sock
+go run ./cmd/debug use-adapter --unix-socket /tmp/myna-adapter.sock
 ```
 
 #### Choosing the recording device
@@ -119,7 +119,7 @@ go run ./cmd/debug use-proxy --unix-socket /tmp/myna-adapter.sock
 The application will open the default streaming device, but you can optionally override that by specifiyng the `--audio-device` argument:
 
 ```bash
-go run ./cmd/debug use-proxy --audio-device alsa_input.pci-0000_c4_00.6.Hi
+go run ./cmd/debug use-adapter --audio-device alsa_input.pci-0000_c4_00.6.Hi
 ```
 
 The available devices can be listed by running `pactl list sources`.
@@ -131,7 +131,7 @@ The available devices can be listed by running `pactl list sources`.
 To enable more repducible tests you can also stream audio from a local file, just set the `--audio-file` argument to the file path:
 
 ```bash
-go run ./cmd/debug use-proxy --unix-socket /tmp/myna-adapter.sock --audio-file test/samples/jfk.flac --realtime-factor 3.0
+go run ./cmd/debug use-adapter --unix-socket /tmp/myna-adapter.sock --audio-file test/samples/jfk.flac --realtime-factor 3.0
 ```
 
 The `--realtime-factor` realtime argument is an optional parameter used to speed up transcription at a rate higher than realtime.
