@@ -1,0 +1,24 @@
+name: cpu
+summary: CPU-optimized for workstations
+description: |
+  This engine uses WhisperLive through the Myna adapter.
+
+vendor: Canonical Ltd
+
+devices:
+  anyof:
+    - type: cpu
+      architecture: amd64
+# TODO: validate compatibility
+#    - type: cpu
+#      architecture: arm64
+
+runtime: whisper-live
+
+model:
+  default: faster-whisper-base
+  options:
+    - faster-whisper-base
+
+configurations:
+  engine-backend: "faster_whisper" #Available backends: "tensorrt", "faster_whisper", "openvino"

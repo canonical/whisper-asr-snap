@@ -1,0 +1,17 @@
+name: faster-whisper-base
+
+description: OpenAI's Whisper-Base model weights translated to the CTranslate2 format. This model is designed for speech recognition tasks and provides a balance between accuracy and computational efficiency.
+model-card-url: https://huggingface.co/Systran/faster-whisper-base
+quantization: q4-k-m
+
+disk-size: 146M
+
+capabilities:
+  - stt
+
+components:
+  - model-faster-whisper-base
+
+environment:
+  - MODEL_DIR=$SNAP_COMPONENTS/model-faster-whisper-base/
+  - MODEL_NAME=faster-whisper-base

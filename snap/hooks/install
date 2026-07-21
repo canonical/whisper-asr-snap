@@ -1,6 +1,7 @@
 #!/bin/bash
 set -e
 
-snapctl set engine-port="9090"
-snapctl set server-host="127.0.0.1"
-snapctl set server-port="9091"
+modelctl set --package engine-host="127.0.0.1"
+modelctl set --package engine-port="9090"
+modelctl set --package server-host="127.0.0.1"
+modelctl set --package server-port="9091"

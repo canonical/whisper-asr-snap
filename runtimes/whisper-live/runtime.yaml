@@ -1,0 +1,19 @@
+name: whisper-live
+
+servers:
+  openai:
+    protocol: http # TODO: it's actually websocket
+    base-path: /ws
+
+environment:
+  - PYTHONPATH=$PYTHONPATH:$SNAP_COMPONENTS/whisper-live/lib/python3.12/site-packages
+  - PYTHONPATH=$PYTHONPATH:$SNAP_COMPONENTS/whisper-live/lib64/python3.12/site-packages
+  # Add component's binaries
+  - PATH=$PATH:$SNAP_COMPONENTS/whisper-live/bin
+  # Add component's shared libraries
+  - LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$SNAP_COMPONENTS/whisper-live/lib
+  # Add component's shared libraries
+  - LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$SNAP_COMPONENTS/whisper-live/usr/lib/$ARCH_TRIPLET
+
+components:
+  - whisper-live
