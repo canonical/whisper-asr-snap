@@ -1,7 +1,25 @@
-#!/bin/bash
-set -e
+#!/bin/bash -eu
+
+tag="snap.$SNAP_INSTANCE_NAME.hook.install"
+
+# Redirect stdout to stdout+syslog
+exec 1> >(tee >(logger --tag=$tag))
+# Redirect stderr to stderr+syslog
+exec 2> >(logger --stderr --priority error --tag=$tag)
+
+#
+# Set generic config
+#
 
 modelctl set --package engine-host="127.0.0.1"
 modelctl set --package engine-port="9090"
+
 modelctl set --package server-host="127.0.0.1"
 modelctl set --package server-port="9091"
+
+
+#
+# Auto select an engine
+#
+
+modelctl use-engine --auto --components --assume-yes --fallback=cpu
