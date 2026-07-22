@@ -147,8 +147,8 @@ parts:
       - python3-minimal
     override-build: |
       craftctl default
+      mv LICENSE ${CRAFT_PART_INSTALL}/usr/share/doc/WhisperLive
     organize:
-      "LICENSE": usr/share/doc/whisper-live # Add licenses to the snap
       "*": (component/whisper-live)
     
   notice:
