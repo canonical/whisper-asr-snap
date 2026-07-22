@@ -6,6 +6,9 @@ servers:
     base-path: /ws
 
 environment:
+  # Export the server run script path
+  - SERVER_RUN_SCRIPT=$SNAP_COMPONENTS/whisper-live/bin/whisperlive_server.py
+  # Add the component's packages to PYTHONPATH
   - PYTHONPATH=$PYTHONPATH:$SNAP_COMPONENTS/whisper-live/lib/python3.12/site-packages
   - PYTHONPATH=$PYTHONPATH:$SNAP_COMPONENTS/whisper-live/lib64/python3.12/site-packages
   # Add component's binaries

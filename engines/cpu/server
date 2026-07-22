@@ -15,7 +15,7 @@ source activate
 echo "Launching engine..."
 
 set -x
-python3 "$SNAP/bin/whisperlive_server.py" \
+python3 "$SERVER_RUN_SCRIPT" \
     --cache_path "$MODEL_DIR" \
     --host "$HOST" \
     --port "$PORT" \

@@ -57,7 +57,7 @@ parts:
     organize:
       engine.sh: bin/engine
       server.sh: bin/server
-      whisperlive_server.py: bin/whisperlive_server.py
+      whisperlive_server.py: (component/whisper-live)/bin/whisperlive_server.py
       # TODO: there's no "export-shared-configs" script
 
   version:
