@@ -182,7 +182,6 @@ apps:
       - network
       - network-bind
       - opengl
-      - hardware-observe
 
   server:
     command: bin/server
