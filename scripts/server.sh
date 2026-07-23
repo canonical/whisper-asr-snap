@@ -33,6 +33,12 @@ installed_model_aliases_str=$(IFS=,; echo "${installed_model_aliases[*]}")
 
 mkdir -p "$(dirname "$SERVER_UNIX_SOCKET")"
 
+# Create symlink in the shared content interface
+if [ -n "$INFERENCE_SHARE" ] && [ -n "$SERVER_UNIX_SOCKET" ]; then
+    mkdir -p "$INFERENCE_SHARE"
+    ln -sf "$SERVER_UNIX_SOCKET" "$INFERENCE_SHARE/openai.sock"
+fi
+
 set -x
 $SNAP/bin/whisperlive-adapter serve \
     --backend-host "$BACKEND_HOST" \
