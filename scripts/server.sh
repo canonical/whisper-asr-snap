@@ -31,6 +31,8 @@ done < <(
 )
 installed_model_aliases_str=$(IFS=,; echo "${installed_model_aliases[*]}")
 
+mkdir -p "$(dirname "$SERVER_UNIX_SOCKET")"
+
 set -x
 $SNAP/bin/whisperlive-adapter serve \
     --backend-host "$BACKEND_HOST" \
