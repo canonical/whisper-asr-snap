@@ -121,6 +121,7 @@ parts:
       cp -rf --archive --link --no-dereference ${CRAFT_PART_SRC}/* ${CRAFT_PART_INSTALL}
     organize:
       "model-faster-whisper-base/*": (component/model-faster-whisper-base)
+      "model-faster-whisper-small/*": (component/model-faster-whisper-small)
     prime:
       # Exclude everything not explicitly organized
       - -*
@@ -167,6 +168,10 @@ components:
     type: standard
     summary: OpenAI's Whisper-Base translated to the CTranslate2 format
     description: Model weights for OpenAI's Whisper-Base in the CTranslate2 format
+  model-faster-whisper-small:
+    type: standard
+    summary: OpenAI's Whisper-Small translated to the CTranslate2 format
+    description: Model weights for OpenAI's Whisper-Small in the CTranslate2 format
 
   whisper-live:
     type: standard

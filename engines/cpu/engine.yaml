@@ -19,6 +19,7 @@ model:
   default: faster-whisper-base
   options:
     - faster-whisper-base
+    - faster-whisper-small
 
 configurations:
   engine-backend: "faster_whisper" #Available backends: "tensorrt", "faster_whisper", "openvino"

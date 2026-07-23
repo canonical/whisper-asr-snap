@@ -16,3 +16,7 @@ mkdir -p components
 # Faster Whisper Base
 hf download Systran/faster-whisper-base \
     --local-dir components/model-faster-whisper-base/
+
+# Faster Whisper Small
+hf download Systran/faster-whisper-small \
+    --local-dir components/model-faster-whisper-small/
