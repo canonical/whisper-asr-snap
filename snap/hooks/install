@@ -14,7 +14,7 @@ exec 2> >(logger --stderr --priority error --tag=$tag)
 modelctl set --package engine-host="127.0.0.1"
 modelctl set --package engine-port="9090"
 
-modelctl set --package server-unix-socket="$SNAP_COMMON/openai.sock"
+modelctl set --package server-unix-socket="$XDG_RUNTIME_DIR/openai.sock"
 
 
 #
