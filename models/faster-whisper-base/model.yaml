@@ -1,5 +1,10 @@
 name: faster-whisper-base
 
+# Alias is used for WhisperLive model identification; 
+# Must be one of the WhisperLive's accepted model name
+#  e.g. tiny, small, base, large...
+alias: base 
+
 description: OpenAI's Whisper-Base model weights translated to the CTranslate2 format. This model is designed for speech recognition tasks and provides a balance between accuracy and computational efficiency.
 model-card-url: https://huggingface.co/Systran/faster-whisper-base
 quantization: q4-k-m
