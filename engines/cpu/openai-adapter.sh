@@ -2,8 +2,8 @@
 
 set -e
 
-BACKEND_HOST=$(modelctl get engine-host)
-BACKEND_PORT=$(modelctl get engine-port)
+BACKEND_HOST=$(modelctl get whisperlive.host)
+BACKEND_PORT=$(modelctl get whisperlive.port)
 SERVER_UNIX_SOCKET=$(modelctl get server-unix-socket)
 
 DEFAULT_LANG="en"

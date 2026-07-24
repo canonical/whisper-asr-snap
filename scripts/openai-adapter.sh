@@ -8,4 +8,4 @@ set -euo pipefail
 # $SNAP/bin/export-shared-configs.sh
 
 engine="$(modelctl status --format=json | jq -r .engine)"
-exec modelctl run -- "$SNAP/engines/$engine/server" "$@"
+exec modelctl run -- "$SNAP/engines/$engine/openai-adapter.sh" "$@"

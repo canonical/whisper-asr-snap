@@ -2,9 +2,9 @@
 
 set -e
 
-HOST=$(modelctl get engine-host)
-PORT=$(modelctl get engine-port)
-BACKEND=$(modelctl get engine-backend)
+HOST=$(modelctl get whisperlive.host)
+PORT=$(modelctl get whisperlive.port)
+BACKEND="faster_whisper" # options: "tensorrt", "faster_whisper", "openvino"
 
 NPROC=$(nproc)
 CLIENT_MAX_CONNECTION_TIME=2147483647 #int32 max, about 64 years

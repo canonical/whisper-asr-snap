@@ -4,6 +4,9 @@ servers:
   openai:
     protocol: http # TODO: it's actually websocket
     base-path: /ws
+  whisperlive:
+    protocol: http # TODO: change to ws
+    base-path: /ws
 
 environment:
   # Export the server run script path

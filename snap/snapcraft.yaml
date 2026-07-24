@@ -63,7 +63,7 @@ parts:
     stage-packages:
       - jq
     organize:
-      engine.sh: bin/engine
+      whisperlive-server.sh: bin/whisperlive-server
       server.sh: bin/server
       whisperlive_server.py: (component/whisper-live)/bin/whisperlive_server.py
       # TODO: there's no "export-shared-configs" script
@@ -187,8 +187,8 @@ components:
     description: A WebSocket-based server performing real-time speech transcription using OpenAI's models.
 
 apps:
-  engine:
-    command: bin/engine
+  whisperlive-backend:
+    command: bin/whisperlive-server
     daemon: simple
     restart-condition: on-failure
     plugs:
@@ -197,7 +197,7 @@ apps:
       - opengl
 
   server:
-    command: bin/server
+    command: bin/openai-adapter
     daemon: simple
     restart-condition: on-failure
     plugs:
