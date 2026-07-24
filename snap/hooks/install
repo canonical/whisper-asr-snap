@@ -11,10 +11,11 @@ exec 2> >(logger --stderr --priority error --tag=$tag)
 # Set generic config
 #
 
-modelctl set --package whisperlive.host="127.0.0.1"
-modelctl set --package whisperlive.port="9090"
+modelctl set --package openai.host="127.0.0.1"
+modelctl set --package openai.port="8350"
 
-modelctl set --package server-unix-socket="/run/snap.$SNAP_INSTANCE_NAME/openai.sock"
+modelctl set --package whisperlive.host="127.0.0.1"
+modelctl set --package whisperlive.port="8351"
 
 #
 # Auto select an engine

@@ -4,7 +4,8 @@ set -e
 
 BACKEND_HOST=$(modelctl get whisperlive.host)
 BACKEND_PORT=$(modelctl get whisperlive.port)
-SERVER_UNIX_SOCKET=$(modelctl get server-unix-socket)
+ADAPTER_HOST=$(modelctl get openai.host)
+ADAPTER_PORT=$(modelctl get openai.port)
 
 DEFAULT_LANG="en"
 ALLOWED_LANGUAGES="en" # use comma-separated list of languages to allow multiple languages, e.g. "auto,en,es,de"
@@ -31,19 +32,12 @@ done < <(
 )
 installed_model_aliases_str=$(IFS=,; echo "${installed_model_aliases[*]}")
 
-mkdir -p "$(dirname "$SERVER_UNIX_SOCKET")"
-
-# Create symlink in the shared content interface
-if [ -n "$INFERENCE_SHARE" ] && [ -n "$SERVER_UNIX_SOCKET" ]; then
-    mkdir -p "$INFERENCE_SHARE"
-    ln -sf "$SERVER_UNIX_SOCKET" "$INFERENCE_SHARE/openai.sock"
-fi
-
 set -x
 $SNAP/bin/whisperlive-adapter serve \
     --backend-host "$BACKEND_HOST" \
     --backend-port "$BACKEND_PORT" \
-    --unix-socket "$SERVER_UNIX_SOCKET" \
+    --host "$ADAPTER_HOST" \
+    --port "$ADAPTER_PORT" \
     --model "$active_model_alias" \
     --language "$DEFAULT_LANG" \
     --allowed-models "$installed_model_aliases_str" \

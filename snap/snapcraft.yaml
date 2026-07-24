@@ -29,18 +29,9 @@ hooks:
   post-refresh:
     plugs: *install-plugs
 
-slots:
-  stt-inference:
-    interface: content
-    content: stt-inference
-    source:
-      write:
-        - &inference-share $SNAP_DATA/share/inference
-
 environment:
   SNAP_COMPONENTS: /snap/$SNAP_INSTANCE_NAME/components/$SNAP_REVISION
   ARCH_TRIPLET: $CRAFT_ARCH_TRIPLET_BUILD_FOR
-  INFERENCE_SHARE: *inference-share # Inference directory shared via content interface
   # This is to find the intel.icd file, containing the path to libigdrcl.so
   # Required for Intel GPU detection and communication
   OCL_ICD_VENDORS: $SNAP/etc/OpenCL/vendors
@@ -64,7 +55,7 @@ parts:
       - jq
     organize:
       whisperlive-server.sh: bin/whisperlive-server
-      server.sh: bin/server
+      openai-adapter.sh: bin/openai-adapter
       whisperlive_server.py: (component/whisper-live)/bin/whisperlive_server.py
       # TODO: there's no "export-shared-configs" script
 
