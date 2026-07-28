@@ -24,3 +24,4 @@ model:
 configurations:
   whisper-live.ws.port: 8351
   whisper-live.ws.host: localhost
+  transcription-language: en

@@ -7,8 +7,7 @@ BACKEND_PORT=$(modelctl get whisper-live.ws.port)
 ADAPTER_HOST=$(modelctl get http.host)
 ADAPTER_PORT=$(modelctl get http.port)
 
-DEFAULT_LANG="en"
-ALLOWED_LANGUAGES="en" # use comma-separated list of languages to allow multiple languages, e.g. "auto,en,es,de"
+DEFAULT_LANG=$(modelctl get transcription-language)
 
 get_installed_models_aliases() {
     local aliases=()
@@ -45,8 +44,8 @@ $SNAP/bin/whisperlive-adapter serve \
     --port "$ADAPTER_PORT" \
     --model "$active_model_alias" \
     --language "$DEFAULT_LANG" \
-    --allowed-models "$installed_model_aliases_str" \
-    --allowed-languages "$ALLOWED_LANGUAGES"
+    --allowed-models "$active_model_alias" \
+    --allowed-languages "${MODEL_SUPPORTED_LANGUAGES//\"/}"
 
 set +x
 echo "Adapter terminated."
