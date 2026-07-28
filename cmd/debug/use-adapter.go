@@ -51,7 +51,7 @@ func NewUseAdapterCmd() *cobra.Command {
 		RunE:              cmd.run,
 	}
 
-	cobraCmd.Flags().StringVar(&cmd.url, "url", "ws://127.0.0.1:8080/ws", "Myna Adapter websocket URL")
+	cobraCmd.Flags().StringVar(&cmd.url, "url", "ws://127.0.0.1:8080/v1/ws", "Myna Adapter websocket URL")
 	cobraCmd.Flags().StringVar(&cmd.unixSocket, "unix-socket", "", "path to a Unix domain socket to connect to")
 	cobraCmd.Flags().StringVar(&cmd.audioFile, "audio-file", "", "path to local audio file to stream. If no audio file is specified, microphone input will be used.")
 	cobraCmd.Flags().StringVar(&cmd.audioDevice, "audio-device", "default", "PulseAudio device to use for input")
@@ -95,7 +95,7 @@ func (cmd *useAdapterCommand) run(cobraCmd *cobra.Command, _ []string) error {
 		dialer.NetDialContext = func(ctx context.Context, _, _ string) (net.Conn, error) {
 			return (&net.Dialer{}).DialContext(ctx, "unix", unixSocket)
 		}
-		cmd.url = "ws://unix/ws" // host is ignored when using unix socket, but must be a valid URL
+		cmd.url = "ws://unix/v1/ws" // host is ignored when using unix socket, but must be a valid URL
 	} else {
 		fmt.Fprintf(out, "connecting to %s\n", cmd.url)
 	}

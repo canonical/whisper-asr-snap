@@ -68,7 +68,7 @@ func (s *WebSocketServer) Start() error {
 	}
 
 	mux := http.NewServeMux()
-	mux.HandleFunc("/ws", s.HandleWebSocket)
+	mux.HandleFunc("/v1/ws", s.HandleWebSocket)
 	mux.HandleFunc("/", s.handleHealth)
 
 	s.httpSrv = &http.Server{
