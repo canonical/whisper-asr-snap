@@ -4,8 +4,8 @@ set -e
 
 BACKEND_HOST=$(modelctl get whisperlive.host)
 BACKEND_PORT=$(modelctl get whisperlive.port)
-ADAPTER_HOST=$(modelctl get openai.host)
-ADAPTER_PORT=$(modelctl get openai.port)
+ADAPTER_HOST=$(modelctl get http.host)
+ADAPTER_PORT=$(modelctl get http.port)
 
 DEFAULT_LANG="en"
 ALLOWED_LANGUAGES="en" # use comma-separated list of languages to allow multiple languages, e.g. "auto,en,es,de"

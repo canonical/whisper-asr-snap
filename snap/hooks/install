@@ -11,8 +11,8 @@ exec 2> >(logger --stderr --priority error --tag=$tag)
 # Set generic config
 #
 
-modelctl set --package openai.host="127.0.0.1"
-modelctl set --package openai.port="8350"
+modelctl set --package http.host="127.0.0.1"
+modelctl set --package http.port="8350"
 
 modelctl set --package whisperlive.host="127.0.0.1"
 modelctl set --package whisperlive.port="8351"
