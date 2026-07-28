@@ -2,8 +2,8 @@
 
 set -e
 
-HOST=$(modelctl get whisperlive.host)
-PORT=$(modelctl get whisperlive.port)
+HOST=$(modelctl get whisper-live.ws.host)
+PORT=$(modelctl get whisper-live.ws.port)
 BACKEND="faster_whisper" # options: "tensorrt", "faster_whisper", "openvino"
 
 NPROC=$(nproc)

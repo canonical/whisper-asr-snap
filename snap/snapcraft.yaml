@@ -54,9 +54,9 @@ parts:
     stage-packages:
       - jq
     organize:
-      whisperlive-server.sh: bin/whisperlive-server
+      whisper-live-server.sh: bin/whisper-live-server
       openai-adapter.sh: bin/openai-adapter
-      whisperlive_server.py: (component/whisper-live)/bin/whisperlive_server.py
+      whisper-live-server.py: (component/whisper-live)/bin/whisper-live-server.py
       # TODO: there's no "export-shared-configs" script
 
   version:
@@ -179,7 +179,7 @@ components:
 
 apps:
   whisperlive-backend:
-    command: bin/whisperlive-server
+    command: bin/whisper-live-server
     daemon: simple
     plugs:
       - network
