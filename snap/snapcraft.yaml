@@ -181,7 +181,6 @@ apps:
   whisperlive-backend:
     command: bin/whisperlive-server
     daemon: simple
-    restart-condition: on-failure
     plugs:
       - network
       - network-bind
@@ -190,7 +189,6 @@ apps:
   server:
     command: bin/openai-adapter
     daemon: simple
-    restart-condition: on-failure
     plugs:
       - network
       - network-bind
