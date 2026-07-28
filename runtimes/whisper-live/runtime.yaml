@@ -2,11 +2,8 @@ name: whisper-live
 
 servers:
   openai:
-    protocol: http # TODO: it's actually websocket
-    base-path: /ws
-  whisperlive:
-    protocol: http # TODO: change to ws
-    base-path: /ws
+    protocol: http
+    base-path: /v1
 
 environment:
   # Export the server run script path

@@ -20,3 +20,7 @@ model:
   options:
     - faster-whisper-base
     - faster-whisper-small
+
+configurations:
+  whisper-live.ws.port: 8351
+  whisper-live.ws.host: localhost

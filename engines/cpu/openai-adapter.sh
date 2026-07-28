@@ -2,8 +2,8 @@
 
 set -e
 
-BACKEND_HOST=$(modelctl get whisperlive.host)
-BACKEND_PORT=$(modelctl get whisperlive.port)
+BACKEND_HOST=$(modelctl get whisper-live.ws.host)
+BACKEND_PORT=$(modelctl get whisper-live.ws.port)
 ADAPTER_HOST=$(modelctl get http.host)
 ADAPTER_PORT=$(modelctl get http.port)
 
