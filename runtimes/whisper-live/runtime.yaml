@@ -4,6 +4,10 @@ servers:
   openai:
     protocol: http
     base-path: /v1
+  whisper-live:
+    protocol: ws
+    base-path: /
+    namespace: whisper-live
 
 environment:
   # Export the server run script path
