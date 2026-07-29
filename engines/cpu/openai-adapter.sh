@@ -7,12 +7,27 @@ BACKEND_PORT=$(modelctl get whisper-live.ws.port)
 ADAPTER_HOST=$(modelctl get http.host)
 ADAPTER_PORT=$(modelctl get http.port)
 
-DEFAULT_LANG=$(modelctl get transcription-language)
+language=$(modelctl get transcription-language)
 
 echo "Launching adapter..."
 
 # Get the alias of the active model
 active_model_alias=$(modelctl list-models --format=json | jq -r '. as $root | .models[] | select(.name == $root."active-model") | .alias')
+
+# If language is set to "system", try to detect the system language and use it as default.
+# If the detected language is not supported by the model, fall back to the first supported language.
+if [ "$language" == "system" ]; then
+    # extract language code from locale, e.g. "en_US.UTF-8" -> "en"; "en.UTF-8" -> "en"; "C.UTF-8" -> "C"
+    language="${LANG%%[_.]*}"
+    echo "Detected system language: $language"
+
+    # validate language code against the list of supported languages
+    supported_langs="${MODEL_SUPPORTED_LANGUAGES//\"/}"
+    if ! echo "$supported_langs" | tr ',' '\n' | grep -qxF "$language"; then
+        echo "System language '$language' is not supported by the model. Falling back to the first supported language."
+        language=$(echo "$supported_langs" | cut -d, -f1 | tr -d ' ')
+    fi
+fi
 
 set -x
 $SNAP/bin/whisperlive-adapter serve \
@@ -21,7 +36,7 @@ $SNAP/bin/whisperlive-adapter serve \
     --host "$ADAPTER_HOST" \
     --port "$ADAPTER_PORT" \
     --model "$active_model_alias" \
-    --language "$DEFAULT_LANG" \
+    --language "$language" \
     --allowed-models "$active_model_alias" \
     --allowed-languages "${MODEL_SUPPORTED_LANGUAGES//\"/}"
 
