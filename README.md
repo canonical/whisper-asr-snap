@@ -105,7 +105,7 @@ The `use-adapter` command streams audio to a running Myna Adapter server and pri
 **Run over TCP**:
 
 ```bash
-go run ./cmd/debug use-adapter --url ws://127.0.0.1:8080/v1/ws
+go run ./cmd/debug use-adapter --url ws://127.0.0.1:8080/v1/realtime
 ```
 
 **Run over a Unix domain socket**:
