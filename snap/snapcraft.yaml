@@ -18,7 +18,7 @@ compression: lzo
 
 platforms:
   amd64:
-  # arm64: # TODO compatibility TBD
+  arm64: 
 
 hooks:
   install:

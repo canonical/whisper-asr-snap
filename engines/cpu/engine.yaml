@@ -9,9 +9,8 @@ devices:
   anyof:
     - type: cpu
       architecture: amd64
-# TODO: validate compatibility
-#    - type: cpu
-#      architecture: arm64
+    - type: cpu
+      architecture: arm64
 
 runtime: whisper-live
 
