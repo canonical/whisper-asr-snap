@@ -402,6 +402,47 @@ func TestUpdateSegmentsNilCallbacksDoNotPanic(t *testing.T) {
 	})
 }
 
+func TestUpdateSegmentsNoDoubleCommitWhenArrayGrows(t *testing.T) {
+	var mu sync.Mutex
+	var commits []string
+	c := newTestClient(Config{
+		Callbacks: backends.BackendCallbacks{
+			OnCommit: func(text string) {
+				mu.Lock()
+				defer mu.Unlock()
+				commits = append(commits, text)
+			},
+		},
+	})
+
+	// Step 1: partial
+	c.updateSegments([]Segment{{Start: 0, End: 1, Text: "hello", Completed: false}})
+
+	// Step 2: same segment becomes completed → OnCommit("hello") must fire once.
+	c.updateSegments([]Segment{{Start: 0, End: 1, Text: "hello", Completed: true}})
+
+	// Step 3: server appends a new partial, growing the array.
+	// newSegmentID becomes 1; without the fix the segmentID-change block would
+	// re-commit segments[0].Text = "hello" a second time.
+	c.updateSegments([]Segment{
+		{Start: 0, End: 1, Text: "hello", Completed: true},
+		{Start: 1, End: 2, Text: "world", Completed: false},
+	})
+
+	mu.Lock()
+	defer mu.Unlock()
+
+	nonEmpty := 0
+	for _, cm := range commits {
+		if cm != "" {
+			nonEmpty++
+		}
+	}
+	if nonEmpty != 1 {
+		t.Errorf("got %d non-empty commit(s) %v, want exactly 1 (no double-commit on array growth)", nonEmpty, commits)
+	}
+}
+
 func TestUpdateSegmentsPartialIsReplacedByNewerPartial(t *testing.T) {
 	c := newTestClient(Config{})
 	c.updateSegments([]Segment{{Start: 0, End: 1, Text: "hello", Completed: false}})
