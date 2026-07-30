@@ -207,9 +207,13 @@ func (c *Client) sendConfig() error {
 	if c.cfg.Translate {
 		task = "translate"
 	}
+	language := c.cfg.Lang
+	if language == "auto" {
+		language = ""
+	}
 	payload := map[string]any{
 		"uid":      c.uid,
-		"language": nilIfEmpty(c.cfg.Lang),
+		"language": nilIfEmpty(language),
 		"task":     task,
 		"model":    c.cfg.Model,
 		"use_vad":  c.cfg.UseVAD,

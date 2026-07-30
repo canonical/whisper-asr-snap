@@ -1,0 +1,202 @@
+name: whisper
+base: core24
+
+summary: A UbuSTT-compliant implementation of OpenAI's Whisper
+description: |
+  Websocket-based server for automatic transcription of streamed audio.
+
+
+website: https://documentation.ubuntu.com/inference-snaps
+source-code: https://github.com/canonical/whisper-snap
+issues: https://github.com/canonical/inference-snaps/issues
+
+adopt-info: version
+
+grade: devel
+confinement: strict
+compression: lzo
+
+platforms:
+  amd64:
+  # arm64: # TODO compatibility TBD
+
+hooks:
+  install:
+    plugs: &install-plugs
+      # For hardware detection
+      - hardware-observe
+      - opengl
+  post-refresh:
+    plugs: *install-plugs
+
+environment:
+  SNAP_COMPONENTS: /snap/$SNAP_INSTANCE_NAME/components/$SNAP_REVISION
+  ARCH_TRIPLET: $CRAFT_ARCH_TRIPLET_BUILD_FOR
+  # This is to find the intel.icd file, containing the path to libigdrcl.so
+  # Required for Intel GPU detection and communication
+  OCL_ICD_VENDORS: $SNAP/etc/OpenCL/vendors
+
+layout:
+  # OpenCL looks in /etc/OpenCL/vendors for .icd files containing the paths to shared objects
+  /etc/OpenCL/vendors:
+    bind: $SNAP/etc/OpenCL/vendors
+  # Intel icd files use an absolute path to Intel OpenCL shared objects. Use a layout to mount the so files at the expected location
+  /usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/intel-opencl:
+    bind: $SNAP/usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/intel-opencl
+  # Under wsl the libraries are expected in /usr/lib/wsl
+  /usr/lib/wsl:
+    bind: $SNAP_COMMON/usr/lib/wsl
+
+parts:
+  scripts:
+    plugin: dump
+    source: ./scripts
+    stage-packages:
+      - jq
+    organize:
+      whisper-live-server.sh: bin/whisper-live-server
+      openai-adapter.sh: bin/openai-adapter
+      whisper-live-server.py: (component/whisper-live)/bin/whisper-live-server.py
+      # TODO: there's no "export-shared-configs" script
+
+  version:
+    after: [cli]
+    plugin: nil
+    source: . # To regenerate the git hash on every change
+    build-packages:
+      - jq
+      - git
+    override-pull: |
+      # Do nothing. This significantly reduces build time when sourcing large files.
+    override-build: |
+      set -eo pipefail
+      cli_version=$($CRAFT_STAGE/bin/modelctl version --format=json | jq .cli --raw-output)
+      git_hash=$(git -C "$SNAPCRAFT_PROJECT_DIR" describe --always)
+      craftctl set version="${cli_version#v}+${git_hash}"
+
+  cli:
+    source:
+      - on amd64: https://github.com/canonical/inference-snaps-cli/releases/download/v2.0.0-beta.12/inference-snaps-cli-linux-amd64.tar.xz
+      - on arm64: https://github.com/canonical/inference-snaps-cli/releases/download/v2.0.0-beta.12/inference-snaps-cli-linux-arm64.tar.xz
+    plugin: dump
+    override-build: |
+
+      # For tab completion
+      ln --symbolic ./modelctl bin/whisper
+
+      craftctl default
+    
+  cli-dependencies:
+    plugin: nil
+    stage-packages:
+      - pciutils # lspci
+      - clinfo # used for Intel GPU vRAM detection. It depends on intel-opencl-icd
+      - coreutils # to have `nproc`
+
+  engines:
+    source: engines
+    plugin: dump
+    organize:
+      "*": engines/
+
+  models:
+    source: models
+    plugin: dump
+    organize:
+      "*": models/
+
+  runtimes:
+    source: runtimes
+    plugin: dump
+    organize:
+      "*": runtimes/
+
+  local-component-files:
+     # Use the cmake plugin instead of "dump" to prevent unwanted copies
+     # See https://github.com/canonical/craft-parts/issues/1609
+    plugin: cmake
+    source: components
+    override-build: |
+      cp -rf --archive --link --no-dereference ${CRAFT_PART_SRC}/* ${CRAFT_PART_INSTALL}
+    organize:
+      "model-faster-whisper-base/*": (component/model-faster-whisper-base)
+      "model-faster-whisper-small/*": (component/model-faster-whisper-small)
+    prime:
+      # Exclude everything not explicitly organized
+      - -*
+
+  myna-adapter:
+    plugin: go
+    source: .
+    build-snaps:
+      - go/1.26/stable
+
+  whisper-live:
+    plugin: python
+    source: https://github.com/collabora/WhisperLive.git
+    source-branch: main
+    python-requirements: 
+     - requirements/server.txt
+    build-packages:
+      - python3-dev
+      - python3-venv
+      - python3-pip
+      - pkg-config
+      - portaudio19-dev
+    stage-packages:
+      - python3-minimal
+    override-build: |
+      craftctl default
+      mv LICENSE ${CRAFT_PART_INSTALL}/usr/share/doc/WhisperLive
+    organize:
+      "*": (component/whisper-live)
+    
+  notice:
+    plugin: nil
+    source: NOTICE
+    source-type: file
+    override-build: |
+      license_dir=$CRAFT_PART_INSTALL/usr/share/doc
+      mkdir -p $license_dir
+      cp NOTICE $license_dir/
+      cp $SNAPCRAFT_PROJECT_DIR/LICENSE $license_dir/
+      cp $SNAPCRAFT_PROJECT_DIR/LICENSE-whisper $license_dir/
+
+components:
+  model-faster-whisper-base:
+    type: standard
+    summary: OpenAI's Whisper-Base translated to the CTranslate2 format
+    description: Model weights for OpenAI's Whisper-Base in the CTranslate2 format
+  model-faster-whisper-small:
+    type: standard
+    summary: OpenAI's Whisper-Small translated to the CTranslate2 format
+    description: Model weights for OpenAI's Whisper-Small in the CTranslate2 format
+
+  whisper-live:
+    type: standard
+    summary: WhisperLive server for real-time transcription
+    description: A WebSocket-based server performing real-time speech transcription using OpenAI's models.
+
+apps:
+  whisperlive-backend:
+    command: bin/whisper-live-server
+    daemon: simple
+    plugs:
+      - network
+      - network-bind
+      - opengl
+
+  server:
+    command: bin/openai-adapter
+    daemon: simple
+    plugs:
+      - network
+      - network-bind
+
+  whisper:
+    command: bin/whisper
+    completer: bin/snap-completer.bash
+    plugs:
+      - hardware-observe
+      - opengl
+      - network
