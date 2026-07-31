@@ -1,7 +1,5 @@
-name: whisper
-base: core24
-
-summary: A UbuSTT-compliant implementation of OpenAI's Whisper
+name: whisper-asr
+title: Whisper ASR
 description: |
   Websocket-based server for automatic transcription of streamed audio.
 
@@ -82,7 +80,7 @@ parts:
     override-build: |
 
       # For tab completion
-      ln --symbolic ./modelctl bin/whisper
+      ln --symbolic ./modelctl bin/whisper-asr
 
       craftctl default
     
@@ -193,8 +191,8 @@ apps:
       - network
       - network-bind
 
-  whisper:
-    command: bin/whisper
+  whisper-asr:
+    command: bin/whisper-asr
     completer: bin/snap-completer.bash
     plugs:
       - hardware-observe
