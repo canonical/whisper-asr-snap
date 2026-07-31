@@ -1,15 +1,16 @@
-name: whisper
-base: core24
-
-summary: A UbuSTT-compliant implementation of OpenAI's Whisper
+name: whisper-asr
+title: Whisper ASR
+summary: Local Speech-to-Text (STT) using Whisper ASR inference snap
 description: |
-  Websocket-based server for automatic transcription of streamed audio.
-
-
+  This snap provides a local speech-to-text (STT) solution using OpenAI's Whisper models.
+  
+  It uses the WhisperLive for real-time transcription and provides an OpenAI adapter for exposing an OpenAI-like Realtime Transcription API.
+  This currently supports CPU inference only. Support for GPU inference is planned for the future.
 website: https://documentation.ubuntu.com/inference-snaps
 source-code: https://github.com/canonical/whisper-snap
 issues: https://github.com/canonical/inference-snaps/issues
 
+base: core24
 adopt-info: version
 
 grade: devel
@@ -82,7 +83,7 @@ parts:
     override-build: |
 
       # For tab completion
-      ln --symbolic ./modelctl bin/whisper
+      ln --symbolic ./modelctl bin/whisper-asr
 
       craftctl default
     
@@ -193,8 +194,8 @@ apps:
       - network
       - network-bind
 
-  whisper:
-    command: bin/whisper
+  whisper-asr:
+    command: bin/whisper-asr
     completer: bin/snap-completer.bash
     plugs:
       - hardware-observe
