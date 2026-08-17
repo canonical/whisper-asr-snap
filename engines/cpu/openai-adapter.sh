@@ -8,6 +8,7 @@ ADAPTER_HOST=$(modelctl get http.host)
 ADAPTER_PORT=$(modelctl get http.port)
 
 language=$(modelctl get transcription-language)
+use_unix_socket=$(modelctl get use-unix-socket)
 
 echo "Launching adapter..."
 
@@ -29,12 +30,17 @@ if [ "$language" == "system" ]; then
     fi
 fi
 
+transport_parameters=(--host "$ADAPTER_HOST" --port "$ADAPTER_PORT")
+if [ "$use_unix_socket" == "true" ]; then
+    mkdir -p "$(dirname "$ADAPTER_SOCKET_PATH")"
+    transport_parameters=(--unix-socket "$ADAPTER_SOCKET_PATH")
+fi
+
 set -x
 $SNAP/bin/whisperlive-adapter serve \
     --backend-host "$BACKEND_HOST" \
     --backend-port "$BACKEND_PORT" \
-    --host "$ADAPTER_HOST" \
-    --port "$ADAPTER_PORT" \
+    "${transport_parameters[@]}" \
     --model "$active_model_alias" \
     --language "$language" \
     --allowed-models "$active_model_alias" \
