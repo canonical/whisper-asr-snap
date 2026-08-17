@@ -33,6 +33,8 @@ fi
 transport_parameters=(--host "$ADAPTER_HOST" --port "$ADAPTER_PORT")
 if [ "$use_unix_socket" == "true" ]; then
     mkdir -p "$(dirname "$ADAPTER_SOCKET_PATH")"
+    mkdir -p "$INFERENCE_SHARE"
+    ln --symbolic --force "$ADAPTER_SOCKET_PATH" "$INFERENCE_SHARE/openai.sock" 
     transport_parameters=(--unix-socket "$ADAPTER_SOCKET_PATH")
 fi
 
