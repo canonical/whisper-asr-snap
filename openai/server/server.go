@@ -93,9 +93,12 @@ func (s *WebSocketServer) Start() error {
 	}
 
 	if s.network == "unix" {
-		defer func() {
-			_ = os.Remove(s.address)
-		}()
+		defer os.Remove(s.address)
+
+		// set file permissions so unprivileged software can connect to the socket
+		if err := os.Chmod(s.address, 0777); err != nil {
+			return fmt.Errorf("setting socket permissions: %w", err)
+		}
 	}
 	defer listener.Close()
 
