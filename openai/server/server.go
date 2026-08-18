@@ -100,9 +100,13 @@ func (s *WebSocketServer) Start() error {
 	s.mu.Unlock()
 
 	listeners := make([]net.Listener, 0, len(s.bindings))
+	unixSocketPaths := make([]string, 0, len(s.bindings))
 	cleanup := func() {
 		for _, l := range listeners {
 			l.Close()
+		}
+		for _, path := range unixSocketPaths {
+			os.Remove(path)
 		}
 		s.mu.Lock()
 		s.running = false
@@ -125,6 +129,7 @@ func (s *WebSocketServer) Start() error {
 		}
 
 		if b.network == "unix" {
+			unixSocketPaths = append(unixSocketPaths, b.address)
 			// set file permissions so unprivileged software can connect to the socket
 			if err := os.Chmod(b.address, 0777); err != nil {
 				listener.Close()
