@@ -38,6 +38,9 @@ type WebSocketServer struct {
 	httpSrv  *http.Server
 	mu       sync.Mutex
 	running  bool
+
+	// listen is overridable in tests to simulate listener failures.
+	listen func(network, address string) (net.Listener, error)
 }
 
 // NewWebSocketServer creates a server that listens on TCP (host/port) and,
@@ -57,6 +60,7 @@ func NewWebSocketServer(host string, port int, unixSocketPath string) *WebSocket
 		upgrader: websocket.Upgrader{
 			CheckOrigin: func(r *http.Request) bool { return true },
 		},
+		listen: net.Listen,
 	}
 }
 
@@ -114,7 +118,7 @@ func (s *WebSocketServer) Start() error {
 			}
 		}
 
-		listener, err := net.Listen(b.network, b.address)
+		listener, err := s.listen(b.network, b.address)
 		if err != nil {
 			cleanup()
 			return err
