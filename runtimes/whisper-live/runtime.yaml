@@ -4,14 +4,15 @@ servers:
   openai:
     protocol: http
     base-path: /v1
+  openai-unix:
+    protocol: http+unix
+    base-path: /v1
   whisper-live:
     protocol: ws
     base-path: /
     namespace: whisper-live
 
 environment:
-  # Path of the Unix Domain Socket for the adapter to listen on
-  - ADAPTER_SOCKET_PATH=$SNAP_COMMON/share/whisper/openai.sock
   # Export the server run script path
   - SERVER_RUN_SCRIPT=$SNAP_COMPONENTS/whisper-live/bin/whisper-live-server.py
   # Add the component's packages to PYTHONPATH

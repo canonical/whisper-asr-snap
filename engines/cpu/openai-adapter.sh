@@ -6,9 +6,9 @@ BACKEND_HOST=$(modelctl get whisper-live.ws.host)
 BACKEND_PORT=$(modelctl get whisper-live.ws.port)
 ADAPTER_HOST=$(modelctl get http.host)
 ADAPTER_PORT=$(modelctl get http.port)
+ADAPTER_SOCKET_PATH=$(modelctl get http.unix-socket)
 
 language=$(modelctl get transcription-language)
-use_unix_socket=$(modelctl get use-unix-socket)
 
 echo "Launching adapter..."
 
@@ -30,19 +30,18 @@ if [ "$language" == "system" ]; then
     fi
 fi
 
-transport_parameters=(--host "$ADAPTER_HOST" --port "$ADAPTER_PORT")
-if [ "$use_unix_socket" == "true" ]; then
-    mkdir -p "$(dirname "$ADAPTER_SOCKET_PATH")"
-    mkdir -p "$INFERENCE_SHARE"
-    ln --symbolic --force "$ADAPTER_SOCKET_PATH" "$INFERENCE_SHARE/openai.sock" 
-    transport_parameters=(--unix-socket "$ADAPTER_SOCKET_PATH")
-fi
+# Prepare socket and shared directory for the adapter
+mkdir -p "$(dirname "$ADAPTER_SOCKET_PATH")"
+mkdir -p "$INFERENCE_SHARE"
+ln --symbolic --force "$ADAPTER_SOCKET_PATH" "$INFERENCE_SHARE/openai.sock" 
 
 set -x
 $SNAP/bin/whisperlive-adapter serve \
     --backend-host "$BACKEND_HOST" \
     --backend-port "$BACKEND_PORT" \
-    "${transport_parameters[@]}" \
+    --host "$ADAPTER_HOST" \
+    --port "$ADAPTER_PORT" \
+    --unix-socket "$ADAPTER_SOCKET_PATH" \
     --model "$active_model_alias" \
     --language "$language" \
     --allowed-models "$active_model_alias" \
