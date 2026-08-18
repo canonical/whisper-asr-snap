@@ -33,7 +33,7 @@ fi
 # Prepare socket and shared directory for the adapter
 mkdir -p "$(dirname "$ADAPTER_SOCKET_PATH")"
 mkdir -p "$INFERENCE_SHARE"
-ln --symbolic --force "$ADAPTER_SOCKET_PATH" "$INFERENCE_SHARE/openai.sock" 
+ln --symbolic --force "$ADAPTER_SOCKET_PATH" "$INFERENCE_SHARE/openai.sock"
 
 set -x
 $SNAP/bin/whisperlive-adapter serve \
