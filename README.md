@@ -4,7 +4,7 @@ Rely on existing transcription projects while exposing an OpenAI-compliant trans
 
 ## Run the Server
 
-The server needs a running backend, and can bind either to a TCP Socket or a Unix Domain Socket:
+The server needs a running backend, and always binds to a TCP socket; it can additionally bind to a Unix domain socket at the same time.
 
 ### TCP mode
 
@@ -22,13 +22,11 @@ curl http://127.0.0.1:8080/
 
 ### Unix socket mode
 
-Run bound to a Unix domain socket path:
+Additionally bind to a Unix domain socket path (the TCP socket from `--host`/`--port` is still bound):
 
 ```bash
 go run ./cmd/whisperlive-adapter serve --unix-socket /tmp/myna-adapter.sock
 ```
-
-When `--unix-socket` is set, the flags `--host` and `--port` are not allowed.
 
 Quick health check over Unix socket:
 

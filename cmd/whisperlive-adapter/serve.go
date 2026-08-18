@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/signal"
 	"slices"
+	"strings"
 	"syscall"
 	"time"
 
@@ -43,7 +44,7 @@ func NewServeCmd() *cobra.Command {
 
 	cobraCmd.Flags().StringVar(&cmd.host, "host", "127.0.0.1", "host interface to bind")
 	cobraCmd.Flags().IntVar(&cmd.port, "port", 8080, "port to listen on")
-	cobraCmd.Flags().StringVar(&cmd.unixSocket, "unix-socket", "", "path to a Unix domain socket to bind (overrides --host/--port)")
+	cobraCmd.Flags().StringVar(&cmd.unixSocket, "unix-socket", "", "path to an additional Unix domain socket to bind, alongside --host/--port")
 
 	cobraCmd.Flags().StringVar(&cmd.backendHost, "backend-host", "127.0.0.1", "The host the backend is running on")
 	cobraCmd.Flags().IntVar(&cmd.backendPort, "backend-port", 9090, "The port the backend is running on")
@@ -52,9 +53,6 @@ func NewServeCmd() *cobra.Command {
 	cobraCmd.Flags().StringVar(&cmd.defaultLang, "language", "en", "Default language code")
 	cobraCmd.Flags().StringSliceVar(&cmd.allowedModels, "allowed-models", []string{"small"}, "Allowed model names")
 	cobraCmd.Flags().StringSliceVar(&cmd.allowedLanguages, "allowed-languages", []string{"en"}, "Allowed language codes")
-
-	cobraCmd.MarkFlagsMutuallyExclusive("unix-socket", "host")
-	cobraCmd.MarkFlagsMutuallyExclusive("unix-socket", "port")
 
 	return cobraCmd
 }
@@ -99,7 +97,7 @@ func (cmd *serveCommand) run(cobraCmd *cobra.Command, _ []string) error {
 			})
 		},
 	)
-	fmt.Fprintf(cobraCmd.OutOrStdout(), "starting websocket server on %s\n", srv.Address())
+	fmt.Fprintf(cobraCmd.OutOrStdout(), "starting websocket server on %s\n", strings.Join(srv.Addresses(), ", "))
 
 	startErr := make(chan error, 1)
 	go func() { startErr <- srv.Start() }()
