@@ -147,6 +147,9 @@ func (s *WebSocketServer) Start() error {
 	for range listeners {
 		if err := <-errCh; err != nil && firstErr == nil {
 			firstErr = err
+			// a listener failed on its own (not via Stop); tear down the
+			// others so the server doesn't keep running in a degraded state.
+			s.httpSrv.Close()
 		}
 	}
 
