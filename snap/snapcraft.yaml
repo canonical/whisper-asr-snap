@@ -36,7 +36,7 @@ slots:
     content: stt-inference
     source:
       write:
-        - &inference-share $SNAP_DATA/share/inference
+        - &inference-share $SNAP_COMMON/share/inference
 
 environment:
   SNAP_COMPONENTS: /snap/$SNAP_INSTANCE_NAME/components/$SNAP_REVISION
