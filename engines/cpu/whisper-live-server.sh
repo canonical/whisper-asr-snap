@@ -19,6 +19,7 @@ export CUDA_VISIBLE_DEVICES="" # Prevent automatic GPU detection
 set -x
 python3 "$SERVER_RUN_SCRIPT" \
     --cache_path "$MODEL_DIR" \
+    --faster_whisper_custom_model_path "$MODEL_DIR" \
     --host "$HOST" \
     --port "$PORT" \
     --backend "$BACKEND" \
