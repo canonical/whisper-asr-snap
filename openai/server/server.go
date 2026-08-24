@@ -72,11 +72,6 @@ func (s *WebSocketServer) SetBackend(cfg backends.SessionConfig, factory backend
 	s.factory = factory
 }
 
-// Address returns the address of the first configured listener.
-func (s *WebSocketServer) Address() string {
-	return s.bindings[0].displayAddress()
-}
-
 // Addresses returns the display addresses of every listener the server binds to.
 func (s *WebSocketServer) Addresses() []string {
 	addrs := make([]string, len(s.bindings))
