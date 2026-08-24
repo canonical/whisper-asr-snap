@@ -140,6 +140,8 @@ func (s *WebSocketServer) Start() error {
 			}
 		}
 
+		fmt.Printf("http server now listening on %s\n", b.displayAddress())
+
 		listeners = append(listeners, listener)
 	}
 
