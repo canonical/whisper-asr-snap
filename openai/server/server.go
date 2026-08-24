@@ -43,12 +43,14 @@ type WebSocketServer struct {
 	listen func(network, address string) (net.Listener, error)
 }
 
-// NewWebSocketServer creates a server that listens on TCP (host/port) and,
-// if unixSocketPath is non-empty, additionally on a Unix domain socket, at
-// the same time.
+// NewWebSocketServer creates a server that listens on TCP (host/port), if
+// port is > 0, and on a Unix domain socket, if unixSocketPath is
+// non-empty. Both may be enabled at the same time, but at least one must be.
 func NewWebSocketServer(host string, port int, unixSocketPath string) *WebSocketServer {
-	bindings := []binding{
-		{network: "tcp", address: net.JoinHostPort(host, strconv.Itoa(port))},
+	var bindings []binding
+
+	if port > 0 {
+		bindings = append(bindings, binding{network: "tcp", address: net.JoinHostPort(host, strconv.Itoa(port))})
 	}
 
 	if unixSocketPath != "" {

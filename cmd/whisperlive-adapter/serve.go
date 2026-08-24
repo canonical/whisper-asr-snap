@@ -43,8 +43,8 @@ func NewServeCmd() *cobra.Command {
 	}
 
 	cobraCmd.Flags().StringVar(&cmd.host, "host", "127.0.0.1", "host interface to bind")
-	cobraCmd.Flags().IntVar(&cmd.port, "port", 8080, "port to listen on")
-	cobraCmd.Flags().StringVar(&cmd.unixSocket, "unix-socket", "", "path to an additional Unix domain socket to bind, alongside --host/--port")
+	cobraCmd.Flags().IntVar(&cmd.port, "port", 0, "port to listen on; TCP listener is only enabled when this is set to a value > 0")
+	cobraCmd.Flags().StringVar(&cmd.unixSocket, "unix-socket", "", "path to a Unix domain socket to bind to. Can coexist with TCP if --port is set")
 
 	cobraCmd.Flags().StringVar(&cmd.backendHost, "backend-host", "127.0.0.1", "The host the backend is running on")
 	cobraCmd.Flags().IntVar(&cmd.backendPort, "backend-port", 9090, "The port the backend is running on")
@@ -58,6 +58,10 @@ func NewServeCmd() *cobra.Command {
 }
 
 func (cmd *serveCommand) validate() error {
+	if cmd.port <= 0 && cmd.unixSocket == "" {
+		return fmt.Errorf("at least one of --port or --unix-socket must be specified")
+	}
+
 	// Validate that default model is in allowed models
 	if !slices.Contains(cmd.allowedModels, cmd.defaultModel) {
 		return fmt.Errorf("default-model %q is not in allowed-models: %v", cmd.defaultModel, cmd.allowedModels)
