@@ -6,6 +6,7 @@ BACKEND_HOST=$(modelctl get whisper-live.ws.host)
 BACKEND_PORT=$(modelctl get whisper-live.ws.port)
 ADAPTER_HOST=$(modelctl get http.host)
 ADAPTER_PORT=$(modelctl get http.port)
+ADAPTER_SOCKET_PATH=$(modelctl get http.unix-socket)
 
 language=$(modelctl get transcription-language)
 
@@ -29,12 +30,16 @@ if [ "$language" == "system" ]; then
     fi
 fi
 
+# Prepare socket and shared directory for the adapter
+mkdir -p "$(dirname "$ADAPTER_SOCKET_PATH")"
+
 set -x
 $SNAP/bin/whisperlive-adapter serve \
     --backend-host "$BACKEND_HOST" \
     --backend-port "$BACKEND_PORT" \
     --host "$ADAPTER_HOST" \
     --port "$ADAPTER_PORT" \
+    --unix-socket "$ADAPTER_SOCKET_PATH" \
     --model "$active_model_alias" \
     --language "$language" \
     --allowed-models "$active_model_alias" \

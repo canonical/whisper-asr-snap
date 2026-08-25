@@ -4,11 +4,11 @@ Rely on existing transcription projects while exposing an OpenAI-compliant trans
 
 ## Run the Server
 
-The server needs a running backend, and can bind either to a TCP Socket or a Unix Domain Socket:
+The server needs a running backend, and can bind to a TCP socket, a Unix domain socket, or both at the same time. At least one of `--port` or `--unix-socket` must be specified.
 
 ### TCP mode
 
-Run with custom host and port:
+Run with custom host and port (TCP is only enabled when `--port` is set):
 
 ```bash
 go run ./cmd/whisperlive-adapter serve --host 0.0.0.0 --port 8080
@@ -22,19 +22,19 @@ curl http://127.0.0.1:8080/
 
 ### Unix socket mode
 
-Run bound to a Unix domain socket path:
+Bind to a Unix domain socket path:
 
 ```bash
 go run ./cmd/whisperlive-adapter serve --unix-socket /tmp/myna-adapter.sock
 ```
-
-When `--unix-socket` is set, the flags `--host` and `--port` are not allowed.
 
 Quick health check over Unix socket:
 
 ```bash
 curl --unix-socket /tmp/myna-adapter.sock http://localhost/
 ```
+
+To bind both a TCP socket and a Unix domain socket at the same time, set both `--port` and `--unix-socket`.
 
 ### Backend configuration
 
@@ -124,7 +124,7 @@ go run ./cmd/debug use-adapter --audio-device alsa_input.pci-0000_c4_00.6.Hi
 
 The available devices can be listed by running `pactl list sources`.
 
-> **NOTE**: the `--unix-socket` and `--url` arguments are mutually exclusive and cannot be set at the same time.
+> **NOTE**: the `--audio-device` and `--audio-file` arguments are mutually exclusive and cannot be set at the same time.
 
 #### Audio file streaming
 

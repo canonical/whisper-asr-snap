@@ -13,6 +13,7 @@ exec 2> >(logger --stderr --priority error --tag=$tag)
 
 modelctl set --package http.host="127.0.0.1"
 modelctl set --package http.port="8350"
+modelctl set --package http.unix-socket="$INFERENCE_SHARE/openai.sock"
 
 #
 # Auto select an engine
