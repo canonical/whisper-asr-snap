@@ -16,9 +16,21 @@ import (
 	"github.com/gorilla/websocket"
 )
 
-type WebSocketServer struct {
+// binding describes a single network/address pair the server listens on.
+type binding struct {
 	network string
 	address string
+}
+
+func (b binding) displayAddress() string {
+	if b.network == "unix" {
+		return "unix://" + b.address
+	}
+	return b.address
+}
+
+type WebSocketServer struct {
+	bindings []binding
 
 	factory backends.Factory
 
@@ -26,23 +38,31 @@ type WebSocketServer struct {
 	httpSrv  *http.Server
 	mu       sync.Mutex
 	running  bool
+
+	// listen is overridable in tests to simulate listener failures.
+	listen func(network, address string) (net.Listener, error)
 }
 
+// NewWebSocketServer creates a server that listens on TCP (host/port), if
+// port is > 0, and on a Unix domain socket, if unixSocketPath is
+// non-empty. Both may be enabled at the same time, but at least one must be.
 func NewWebSocketServer(host string, port int, unixSocketPath string) *WebSocketServer {
-	network := "tcp"
-	address := net.JoinHostPort(host, strconv.Itoa(port))
+	var bindings []binding
+
+	if port > 0 {
+		bindings = append(bindings, binding{network: "tcp", address: net.JoinHostPort(host, strconv.Itoa(port))})
+	}
 
 	if unixSocketPath != "" {
-		network = "unix"
-		address = unixSocketPath
+		bindings = append(bindings, binding{network: "unix", address: unixSocketPath})
 	}
 
 	return &WebSocketServer{
-		network: network,
-		address: address,
+		bindings: bindings,
 		upgrader: websocket.Upgrader{
 			CheckOrigin: func(r *http.Request) bool { return true },
 		},
+		listen: net.Listen,
 	}
 }
 
@@ -52,18 +72,19 @@ func (s *WebSocketServer) SetBackend(cfg backends.SessionConfig, factory backend
 	s.factory = factory
 }
 
-func (s *WebSocketServer) Address() string {
-	if s.network == "unix" {
-		return "unix://" + s.address
+// Addresses returns the display addresses of every listener the server binds to.
+func (s *WebSocketServer) Addresses() []string {
+	addrs := make([]string, len(s.bindings))
+	for i, b := range s.bindings {
+		addrs[i] = b.displayAddress()
 	}
-	return s.address
+	return addrs
 }
 
 func (s *WebSocketServer) Start() error {
 	s.mu.Lock()
-	defer s.mu.Unlock()
-
 	if s.running {
+		s.mu.Unlock()
 		return fmt.Errorf("server already running")
 	}
 
@@ -71,50 +92,100 @@ func (s *WebSocketServer) Start() error {
 	mux.HandleFunc("/v1/realtime", s.HandleWebSocket)
 	mux.HandleFunc("/", s.handleHealth)
 
-	s.httpSrv = &http.Server{
-		Addr:    s.address,
-		Handler: mux,
-	}
+	s.httpSrv = &http.Server{Handler: mux}
 	s.running = true
+	s.mu.Unlock()
 
-	if s.network == "unix" {
-		if err := os.Remove(s.address); err != nil && !errors.Is(err, os.ErrNotExist) {
-			s.running = false
-			s.httpSrv = nil
-			return fmt.Errorf("removing existing unix socket %q: %w", s.address, err)
+	listeners := make([]net.Listener, 0, len(s.bindings))
+	unixSocketPaths := make([]string, 0, len(s.bindings))
+	cleanup := func() {
+		for _, l := range listeners {
+			l.Close()
+		}
+		for _, path := range unixSocketPaths {
+			os.Remove(path)
+		}
+		s.mu.Lock()
+		s.running = false
+		s.httpSrv = nil
+		s.mu.Unlock()
+	}
+
+	for _, b := range s.bindings {
+		if b.network == "unix" {
+			if err := os.Remove(b.address); err != nil && !errors.Is(err, os.ErrNotExist) {
+				cleanup()
+				return fmt.Errorf("removing existing unix socket %q: %w", b.address, err)
+			}
+		}
+
+		listener, err := s.listen(b.network, b.address)
+		if err != nil {
+			cleanup()
+			return err
+		}
+
+		if b.network == "unix" {
+			unixSocketPaths = append(unixSocketPaths, b.address)
+			// set file permissions so unprivileged software can connect to the socket
+			if err := os.Chmod(b.address, 0777); err != nil {
+				listener.Close()
+				cleanup()
+				return fmt.Errorf("setting socket permissions: %w", err)
+			}
+		}
+
+		fmt.Printf("http server now listening on %s\n", b.displayAddress())
+
+		listeners = append(listeners, listener)
+	}
+
+	errCh := make(chan error, len(listeners))
+	for _, listener := range listeners {
+		go func(l net.Listener) {
+			err := s.httpSrv.Serve(l)
+			if err == http.ErrServerClosed {
+				err = nil
+			}
+			errCh <- err
+		}(listener)
+	}
+
+	var firstErr error
+	for range listeners {
+		if err := <-errCh; err != nil && firstErr == nil {
+			firstErr = err
+			// a listener failed on its own (not via Stop); tear down the
+			// others so the server doesn't keep running in a degraded state.
+			s.httpSrv.Close()
 		}
 	}
 
-	listener, err := net.Listen(s.network, s.address)
-	if err != nil {
-		s.running = false
-		s.httpSrv = nil
-		return err
+	for _, b := range s.bindings {
+		if b.network == "unix" {
+			os.Remove(b.address)
+		}
 	}
 
-	if s.network == "unix" {
-		defer func() {
-			_ = os.Remove(s.address)
-		}()
-	}
-	defer listener.Close()
-
-	err = s.httpSrv.Serve(listener)
-	if err == http.ErrServerClosed {
-		err = nil
-	}
-
+	s.mu.Lock()
 	s.running = false
 	s.httpSrv = nil
-	return err
+	s.mu.Unlock()
+
+	return firstErr
 }
 
 func (s *WebSocketServer) Stop(ctx context.Context) error {
-	if s.httpSrv == nil || !s.running {
+	s.mu.Lock()
+	srv := s.httpSrv
+	running := s.running
+	s.mu.Unlock()
+
+	if srv == nil || !running {
 		return nil
 	}
 
-	return s.httpSrv.Shutdown(ctx)
+	return srv.Shutdown(ctx)
 }
 
 func (s *WebSocketServer) HandleWebSocket(w http.ResponseWriter, r *http.Request) {
