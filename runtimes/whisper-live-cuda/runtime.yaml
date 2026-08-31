@@ -1,4 +1,4 @@
-name: whisper-live
+name: whisper-live-cuda
 
 servers:
   openai:
@@ -18,8 +18,8 @@ environment:
   # Add the component's packages to PYTHONPATH
   - PYTHONPATH=$PYTHONPATH:$SNAP_COMPONENTS/whisper-live/lib/python3.12/site-packages
   - PYTHONPATH=$PYTHONPATH:$SNAP_COMPONENTS/whisper-live/lib64/python3.12/site-packages
-  # Add CPU component's packages to PYTHONPATH
-  - PYTHONPATH=$PYTHONPATH:$SNAP_COMPONENTS/whisper-live-cpu/site-packages
+  # Add cuda component's packages to PYTHONPATH
+  - PYTHONPATH=$PYTHONPATH:$SNAP_COMPONENTS/whisper-live-cuda/site-packages
   # Add component's binaries
   - PATH=$PATH:$SNAP_COMPONENTS/whisper-live/bin
   # Add component's shared libraries
@@ -29,4 +29,4 @@ environment:
 
 components:
   - whisper-live
-  - whisper-live-cpu
+  - whisper-live-cuda

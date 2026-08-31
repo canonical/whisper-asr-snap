@@ -158,7 +158,7 @@ parts:
     source: https://github.com/collabora/WhisperLive.git
     source-branch: main
     python-requirements: 
-     - requirements/server.txt
+      - requirements/server.txt
     build-packages:
       - python3-dev
       - python3-venv
@@ -170,6 +170,28 @@ parts:
     override-build: |
       craftctl default
       mv LICENSE ${CRAFT_PART_INSTALL}/usr/share/doc/WhisperLive
+
+      move_packages_to_component() {
+        local packages_filter="$1"
+        local component_name="$2"
+
+        local component_name_normalized=$(echo "$component_name" | tr '[:lower:]' '[:upper:]' | tr '-' '_')
+        local destination_component_env="CRAFT_COMPONENT_${component_name_normalized}_PRIME"
+        local destination_component_dir="${!destination_component_env}"
+
+        mkdir -p "$destination_component_dir/site-packages/"
+        mv -f "${CRAFT_PART_INSTALL}"/lib/python*/site-packages/${packages_filter} \
+          "$destination_component_dir/site-packages/"
+      }
+
+      # Move CUDA python packages and CUDA-pytorch to a separate component
+      move_packages_to_component "torch*" "whisper-live-cuda"
+      move_packages_to_component "nvidia*" "whisper-live-cuda"
+
+      # Install pytorch CPU and move it to the CPU component
+      pip install torch --index-url https://download.pytorch.org/whl/cpu
+      move_packages_to_component "torch*" "whisper-live-cpu"
+      
     organize:
       "*": (component/whisper-live)
     
@@ -199,6 +221,16 @@ components:
     summary: WhisperLive server for real-time transcription
     description: A WebSocket-based server performing real-time speech transcription using OpenAI's models.
 
+  whisper-live-cpu:
+    type: standard
+    summary: WhisperLive dependencies for CPU inference
+    description: Set of libraries to enable WhisperLive to use CPU for inference.
+
+  whisper-live-cuda:
+    type: standard
+    summary: WhisperLive dependencies for CUDA inference
+    description: Set of libraries to enable WhisperLive to use NVIDIA GPUs for inference.
+  
 apps:
   whisperlive-backend:
     command: bin/whisper-live-server
