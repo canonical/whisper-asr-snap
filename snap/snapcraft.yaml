@@ -5,7 +5,6 @@ description: |
   This snap provides a local speech-to-text (STT) solution using OpenAI's Whisper models.
   
   It uses the WhisperLive for real-time transcription and provides an OpenAI adapter for exposing an OpenAI-like Realtime Transcription API.
-  This currently supports CPU inference only. Support for GPU inference is planned for the future.
 website: https://documentation.ubuntu.com/inference-snaps
 source-code: https://github.com/canonical/whisper-snap
 issues: https://github.com/canonical/inference-snaps/issues
