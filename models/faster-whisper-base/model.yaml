@@ -12,7 +12,7 @@ quantization: FP16
 disk-size: 146M
 
 capabilities:
-  - audio:transcription
+  - realtime-transcription
 
 components:
   - model-faster-whisper-base
