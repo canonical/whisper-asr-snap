@@ -193,7 +193,7 @@ parts:
 
       # Install pytorch CPU and move it to the CPU component
       pip install ctranslate2
-      pip install torch --index-url https://download.pytorch.org/whl/cpu
+      pip install "torch==2.14.0+cpu" --index-url https://download.pytorch.org/whl/cpu
       move_packages_to_component "torch*" "whisper-live-cpu"
       move_packages_to_component "ctranslate2*" "whisper-live-cpu"
 
