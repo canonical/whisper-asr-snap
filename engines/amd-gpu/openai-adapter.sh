@@ -13,7 +13,7 @@ language=$(modelctl get transcription-language)
 echo "Launching adapter..."
 
 # Get the alias of the active model
-active_model_alias=$(modelctl list-models --format=json | jq -r '. as $root | .models[] | select(.name == $root."active-model") | .alias')
+active_model_alias=$(modelctl show-model --format=json | jq -r .alias)
 
 # If language is set to "system", try to detect the system language and use it as default.
 # If the detected language is not supported by the model, fall back to the first supported language.
