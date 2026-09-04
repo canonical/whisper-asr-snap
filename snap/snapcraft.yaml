@@ -164,8 +164,6 @@ parts:
       - python3-pip
       - pkg-config
       - portaudio19-dev
-      - wget
-      - unzip
     stage-packages:
       - python3-minimal
     override-build: |
@@ -190,43 +188,60 @@ parts:
       move_packages_to_component "torch*" "whisper-live-cuda"
       move_packages_to_component "nvidia*" "whisper-live-cuda"
       move_packages_to_component "ctranslate2*" "whisper-live-cuda"
-
-      # Install pytorch CPU and move it to the CPU component
-      pip install ctranslate2
-      pip install "torch==2.14.0+cpu" --index-url https://download.pytorch.org/whl/cpu
-      move_packages_to_component "torch*" "whisper-live-cpu"
-      move_packages_to_component "ctranslate2*" "whisper-live-cpu"
-
-      if [ "$CRAFT_ARCH_BUILD_FOR" == "amd64" ]; then # ROCm is only supported on AMD64
-
-        # Install pytorch ROCm and ROCm-ctranslate2 and move them to the ROCm component
-        pip install "torch==2.13.0+rocm7.2" --index-url https://download.pytorch.org/whl/rocm7.2
-        move_packages_to_component "torch*" "whisper-live-rocm"
-         
-        rocm_torch_lib="$CRAFT_COMPONENT_WHISPER_LIVE_ROCM_PRIME/site-packages/torch/lib"
-        rm -f "$rocm_torch_lib"/libtinfo.so{,.6}
-        ldconfig -n "$rocm_torch_lib"
-
-        # download and extract CTranslate2 ROCm wheels
-        mkdir -p /tmp/rocm-wheels
-        wget https://github.com/OpenNMT/CTranslate2/releases/download/v4.8.2/rocm-python-wheels-Linux.zip \
-          -O /tmp/rocm-wheels/rocm-python-wheels-Linux.zip
-        unzip /tmp/rocm-wheels/rocm-python-wheels-Linux.zip -d /tmp/rocm-wheels
-        
-        # let pip figure out which wheel to install based on the current environment
-        pip install --no-index --find-links=/tmp/rocm-wheels/temp-linux ctranslate2
-        move_packages_to_component "ctranslate2*" "whisper-live-rocm"
-      fi
-      
     organize:
       "*": (component/whisper-live)
   
+  cpu-dependencies:
+    plugin: nil
+    build-packages:
+      - python3-dev
+      - python3-pip
+      - pkg-config
+    override-build: |
+      # Install pytorch CPU and move it to the CPU component
+      pip install ctranslate2 --no-deps \
+        --target "$CRAFT_PART_INSTALL"/site-packages
+      pip install "torch==2.14.0+cpu" --no-deps \
+        --index-url https://download.pytorch.org/whl/cpu \
+        --target "$CRAFT_PART_INSTALL"/site-packages
+    organize:
+      "*": (component/whisper-live-cpu)
+
   rocm-dependencies:
     plugin: nil
+    build-packages:
+      - wget
+      - unzip
+      - python3-dev
+      - python3-pip
+      - pkg-config
     stage-packages:
       - libatomic1
-    override-pull: &amd64-only |
-      [ "$CRAFT_ARCH_BUILD_FOR" == "amd64" ] && craftctl default || exit 0
+    override-build: |
+      # ROCm is only supported on AMD64
+      if [ "$CRAFT_ARCH_BUILD_FOR" == "amd64" ]; then 
+
+        # Install pytorch ROCm and ROCm-ctranslate2 and move them to the ROCm component
+        pip install "torch==2.13.0+rocm7.2" --no-deps \
+          --index-url https://download.pytorch.org/whl/rocm7.2 \
+          --target "$CRAFT_PART_INSTALL"/site-packages
+         
+        #rocm_torch_lib="$CRAFT_COMPONENT_WHISPER_LIVE_ROCM_PRIME/site-packages/torch/lib"
+        #rm -f "$rocm_torch_lib"/libtinfo.so{,.6}
+        #ldconfig -n "$rocm_torch_lib"
+        ldconfig -n "$CRAFT_PART_INSTALL"/site-packages/torch/lib
+
+        # download and extract CTranslate2 ROCm wheels
+        mkdir -p /tmp/ctranslate2-rocm-wheels
+        wget -nv https://github.com/OpenNMT/CTranslate2/releases/download/v4.8.2/rocm-python-wheels-Linux.zip \
+          -O /tmp/ctranslate2-rocm-wheels/rocm-python-wheels-Linux.zip
+        unzip /tmp/ctranslate2-rocm-wheels/rocm-python-wheels-Linux.zip -d /tmp/ctranslate2-rocm-wheels
+        
+        # let pip figure out which wheel to install based on the current environment
+        pip install ctranslate2 --no-deps --no-index \
+          --find-links=/tmp/ctranslate2-rocm-wheels/temp-linux \
+          --target "$CRAFT_PART_INSTALL"/site-packages
+      fi
     organize:
       "*": (component/whisper-live-rocm)
 
@@ -280,6 +295,7 @@ apps:
       - network-bind
       - opengl
       - hardware-observe
+      - process-control
 
   server:
     command: bin/openai-adapter
