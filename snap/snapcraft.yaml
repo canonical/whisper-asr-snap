@@ -202,6 +202,10 @@ parts:
         # Install pytorch ROCm and ROCm-ctranslate2 and move them to the ROCm component
         pip install "torch==2.13.0+rocm7.2" --index-url https://download.pytorch.org/whl/rocm7.2
         move_packages_to_component "torch*" "whisper-live-rocm"
+         
+        rocm_torch_lib="$CRAFT_COMPONENT_WHISPER_LIVE_ROCM_PRIME/site-packages/torch/lib"
+        rm -f "$rocm_torch_lib"/libtinfo.so{,.6}
+        ldconfig -n "$rocm_torch_lib"
 
         # download and extract CTranslate2 ROCm wheels
         mkdir -p /tmp/rocm-wheels
