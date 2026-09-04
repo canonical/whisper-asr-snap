@@ -198,7 +198,7 @@ parts:
       - pkg-config
     override-build: |
       # Install pytorch CPU and move it to the CPU component
-      pip install torch --no-deps \
+      pip install "torch==2.14.0+cpu" --no-deps \
         --index-url https://download.pytorch.org/whl/cpu \
         --target "$CRAFT_PART_INSTALL"/site-packages
     organize:
