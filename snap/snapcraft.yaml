@@ -186,14 +186,24 @@ parts:
       # Move CUDA python packages and CUDA-pytorch to a separate component
       move_packages_to_component "torch*" "whisper-live-cuda"
       move_packages_to_component "nvidia*" "whisper-live-cuda"
-
-      # Install pytorch CPU and move it to the CPU component
-      pip install torch --index-url https://download.pytorch.org/whl/cpu
-      move_packages_to_component "torch*" "whisper-live-cpu"
       
     organize:
       "*": (component/whisper-live)
-    
+
+  cpu-dependencies:
+    plugin: nil
+    build-packages:
+      - python3-dev
+      - python3-pip
+      - pkg-config
+    override-build: |
+      # Install pytorch CPU and move it to the CPU component
+      pip install torch --no-deps \
+        --index-url https://download.pytorch.org/whl/cpu \
+        --target "$CRAFT_PART_INSTALL"/site-packages
+    organize:
+      "*": (component/whisper-live-cpu)
+
   notice:
     plugin: nil
     source: NOTICE
