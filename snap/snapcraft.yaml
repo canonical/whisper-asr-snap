@@ -241,6 +241,23 @@ parts:
         pip install ctranslate2 --no-deps --no-index \
           --find-links=/tmp/ctranslate2-rocm-wheels/temp-linux \
           --target "$CRAFT_PART_INSTALL"/site-packages
+
+        # Trim away torch libs for architecture not supported by CTranslate2 ROCm wheels.
+        # This is mainly to save disk space for this component.
+        # This will not remove all source code, as that would require recompiling torch with 
+        #  PYTORCH_ROCM_ARCH set to the desired architectures.
+        
+        torch_lib="$CRAFT_PART_INSTALL/site-packages/torch/lib"
+        for arch in gfx900 gfx906 gfx908 gfx90a gfx942 gfx950; do
+          find \
+            "$torch_lib/hipblaslt/library" \
+            "$torch_lib/rocblas/library" \
+            "$torch_lib/aotriton.images" \
+            "$CRAFT_PART_INSTALL/site-packages/torch/share/miopen" \
+            -depth \
+            -iname "*${arch}*" \
+            -exec rm -rf -- {} +
+        done
       fi
     organize:
       "*": (component/whisper-live-rocm)
