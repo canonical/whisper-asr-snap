@@ -24,7 +24,6 @@ environment:
   - PATH=$PATH:$SNAP_COMPONENTS/whisper-live/bin
   # Add component's shared libraries
   - LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$SNAP_COMPONENTS/whisper-live/lib
-  # Add component's shared libraries
   - LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$SNAP_COMPONENTS/whisper-live/usr/lib/$ARCH_TRIPLET
   - LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$SNAP_COMPONENTS/whisper-live-rocm/site-packages/torch/lib
   - LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$SNAP_COMPONENTS/whisper-live-rocm/usr/lib/$ARCH_TRIPLET
