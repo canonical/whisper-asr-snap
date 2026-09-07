@@ -225,10 +225,7 @@ parts:
         pip install "torch==2.13.0+rocm7.2" --no-deps \
           --index-url https://download.pytorch.org/whl/rocm7.2 \
           --target "$CRAFT_PART_INSTALL"/site-packages
-         
-        #rocm_torch_lib="$CRAFT_COMPONENT_WHISPER_LIVE_ROCM_PRIME/site-packages/torch/lib"
-        #rm -f "$rocm_torch_lib"/libtinfo.so{,.6}
-        #ldconfig -n "$rocm_torch_lib"
+
         ldconfig -n "$CRAFT_PART_INSTALL"/site-packages/torch/lib
 
         # download and extract CTranslate2 ROCm wheels
