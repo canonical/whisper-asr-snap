@@ -199,7 +199,7 @@ parts:
       - pkg-config
     override-build: |
       # Install pytorch CPU and move it to the CPU component
-      pip install ctranslate2 --no-deps \
+      pip install "ctranslate2==4.8.2" --no-deps \
         --target "$CRAFT_PART_INSTALL"/site-packages
       pip install "torch==2.14.0+cpu" --no-deps \
         --index-url https://download.pytorch.org/whl/cpu \
