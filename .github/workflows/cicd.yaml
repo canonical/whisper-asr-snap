@@ -21,8 +21,8 @@ jobs:
       fail-fast: false
       matrix:
         runner:
-          - ["amd64", "medium", "noble", "self-hosted"]
-          - ["arm64", "medium", "noble", "self-hosted"]
+          - ["amd64", "large", "noble", "self-hosted"]
+          - ["arm64", "large", "noble", "self-hosted"]
     with:
       runner: "${{ toJSON(matrix.runner) }}"
       publish-channel: latest/edge
