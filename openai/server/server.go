@@ -127,12 +127,6 @@ func (s *WebSocketServer) Start() error {
 
 		if b.network == "unix" {
 			unixSocketPaths = append(unixSocketPaths, b.address)
-			// set file permissions so unprivileged software can connect to the socket
-			if err := os.Chmod(b.address, 0777); err != nil {
-				listener.Close()
-				cleanup()
-				return fmt.Errorf("setting socket permissions: %w", err)
-			}
 		}
 
 		fmt.Printf("http server now listening on %s\n", b.displayAddress())
