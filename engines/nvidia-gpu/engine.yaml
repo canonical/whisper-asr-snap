@@ -5,7 +5,7 @@ description: |
   
   It is optimized for NVIDIA GPUs.
   
-  This engine supports both amd64 and arm64 CPU architectures.
+  This engine supports the amd64 CPU architecture.
 
 vendor: Canonical Ltd
 
@@ -16,8 +16,6 @@ devices:
   anyof:
     - type: cpu
       architecture: amd64
-    - type: cpu
-      architecture: arm64
 
 runtime: whisper-live-cuda
 
