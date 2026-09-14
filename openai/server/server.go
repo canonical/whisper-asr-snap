@@ -9,6 +9,7 @@ import (
 	"os"
 	"strconv"
 	"sync"
+	"time"
 
 	"myna-adapter/backends"
 	"myna-adapter/openai/events"
@@ -32,7 +33,9 @@ func (b binding) displayAddress() string {
 type WebSocketServer struct {
 	bindings []binding
 
-	factory backends.Factory
+	factory       backends.Factory
+	allowedModels []string
+	startTime     time.Time
 
 	upgrader websocket.Upgrader
 	httpSrv  *http.Server
@@ -58,7 +61,8 @@ func NewWebSocketServer(host string, port int, unixSocketPath string) *WebSocket
 	}
 
 	return &WebSocketServer{
-		bindings: bindings,
+		bindings:  bindings,
+		startTime: time.Now(),
 		upgrader: websocket.Upgrader{
 			CheckOrigin: func(r *http.Request) bool { return true },
 		},
@@ -70,6 +74,12 @@ func NewWebSocketServer(host string, port int, unixSocketPath string) *WebSocket
 // backend session for each connecting user.
 func (s *WebSocketServer) SetBackend(cfg backends.SessionConfig, factory backends.Factory) {
 	s.factory = factory
+}
+
+// SetAllowedModels configures the list of model names advertised by the
+// /v1/models endpoint.
+func (s *WebSocketServer) SetAllowedModels(models []string) {
+	s.allowedModels = models
 }
 
 // Addresses returns the display addresses of every listener the server binds to.
@@ -90,6 +100,7 @@ func (s *WebSocketServer) Start() error {
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("/v1/realtime", s.HandleWebSocket)
+	mux.HandleFunc("/v1/models", s.handleModels)
 	mux.HandleFunc("/", s.handleHealth)
 
 	s.httpSrv = &http.Server{Handler: mux}

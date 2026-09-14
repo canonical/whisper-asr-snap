@@ -84,6 +84,7 @@ func (cmd *serveCommand) run(cobraCmd *cobra.Command, _ []string) error {
 	defer stop()
 
 	srv := server.NewWebSocketServer(cmd.host, cmd.port, cmd.unixSocket)
+	srv.SetAllowedModels(cmd.allowedModels)
 	srv.SetBackend(
 		backends.SessionConfig{
 			Model: cmd.defaultModel,

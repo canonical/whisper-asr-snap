@@ -63,6 +63,18 @@ go run ./cmd/whisperlive-adapter serve \
 	--allowed-languages "auto,en,fr"
 ```
 
+The models listed in `--allowed-models` are exposed via an OpenAI-compatible `/v1/models` endpoint:
+
+```json
+{
+  "object": "list",
+  "data": [
+    { "id": "small", "object": "model", "created": 1717000000, "owned_by": "myna-adapter" },
+    { "id": "tiny", "object": "model", "created": 1717000000, "owned_by": "myna-adapter" }
+  ]
+}
+```
+
 ## Debugging
 
 This project includes a debug entry point to run inference directly against the backend or through a running instance of the Myna Adapter.
