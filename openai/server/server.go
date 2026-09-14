@@ -12,7 +12,7 @@ import (
 	"time"
 
 	"myna-adapter/backends"
-	"myna-adapter/openai/events"
+	"myna-adapter/openai/server/endpoints"
 
 	"github.com/gorilla/websocket"
 )
@@ -99,9 +99,11 @@ func (s *WebSocketServer) Start() error {
 	}
 
 	mux := http.NewServeMux()
-	mux.HandleFunc("/v1/realtime", s.HandleWebSocket)
-	mux.HandleFunc("/v1/models", s.handleModels)
-	mux.HandleFunc("/", s.handleHealth)
+	mux.HandleFunc("/v1/realtime", endpoints.Realtime(s.upgrader, func(conn *websocket.Conn) endpoints.RealtimeSession {
+		return NewSession(conn, s.factory)
+	}))
+	mux.HandleFunc("/v1/models", endpoints.Models(s.allowedModels, s.startTime))
+	mux.HandleFunc("/", endpoints.Health())
 
 	s.httpSrv = &http.Server{Handler: mux}
 	s.running = true
@@ -197,56 +199,4 @@ func (s *WebSocketServer) Stop(ctx context.Context) error {
 	}
 
 	return srv.Shutdown(ctx)
-}
-
-func (s *WebSocketServer) HandleWebSocket(w http.ResponseWriter, r *http.Request) {
-	conn, err := s.upgrader.Upgrade(w, r, nil)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-	defer conn.Close()
-
-	session := NewSession(conn, s.factory)
-	defer session.Close()
-
-	// Open the backend session and advertise session.created before accepting
-	// audio from the user.
-	if err := session.Start(r.Context()); err != nil {
-		fmt.Printf("starting client session: %v\n", err)
-		_ = session.SendError(
-			events.ErrorTypeServer,
-			events.ErrorCodeServerError,
-			"failed to start session",
-		)
-		return
-	}
-
-	for {
-		messageType, payload, err := conn.ReadMessage()
-		if err != nil {
-			fmt.Printf("reading message: %v\n", err)
-			return
-		}
-
-		switch messageType {
-		case websocket.BinaryMessage:
-			// Send error for unsupported binary frames
-			_ = session.SendError(
-				events.ErrorTypeInvalidRequest,
-				events.ErrorCodeInvalidParameter,
-				"binary messages are unsupported",
-			)
-
-		case websocket.TextMessage:
-			if err := session.HandleMessage(payload); err != nil {
-				fmt.Fprintf(os.Stderr, "Error handling message: %v\n", err)
-			}
-		}
-	}
-}
-
-func (s *WebSocketServer) handleHealth(w http.ResponseWriter, r *http.Request) {
-	w.WriteHeader(http.StatusOK)
-	_, _ = w.Write([]byte("ok"))
 }
