@@ -3,9 +3,11 @@ package main
 import (
 	"context"
 	"fmt"
+	"net"
 	"os"
 	"os/signal"
 	"slices"
+	"strconv"
 	"strings"
 	"syscall"
 	"time"
@@ -85,6 +87,14 @@ func (cmd *serveCommand) run(cobraCmd *cobra.Command, _ []string) error {
 
 	srv := server.NewWebSocketServer(cmd.host, cmd.port, cmd.unixSocket)
 	srv.SetAllowedModels(cmd.allowedModels)
+	srv.SetBackendChecker(func(ctx context.Context) error {
+		var d net.Dialer
+		conn, err := d.DialContext(ctx, "tcp", net.JoinHostPort(cmd.backendHost, strconv.Itoa(cmd.backendPort)))
+		if err != nil {
+			return err
+		}
+		return conn.Close()
+	})
 	srv.SetBackend(
 		backends.SessionConfig{
 			Model: cmd.defaultModel,

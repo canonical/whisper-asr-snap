@@ -33,9 +33,10 @@ func (b binding) displayAddress() string {
 type WebSocketServer struct {
 	bindings []binding
 
-	factory       backends.Factory
-	allowedModels []string
-	startTime     time.Time
+	factory        backends.Factory
+	allowedModels  []string
+	startTime      time.Time
+	backendChecker endpoints.BackendChecker
 
 	upgrader websocket.Upgrader
 	httpSrv  *http.Server
@@ -82,6 +83,13 @@ func (s *WebSocketServer) SetAllowedModels(models []string) {
 	s.allowedModels = models
 }
 
+// SetBackendChecker configures how the /health endpoint probes the
+// transcription backend's reachability. Pass nil (the default) to omit the
+// backend check from health responses.
+func (s *WebSocketServer) SetBackendChecker(checker endpoints.BackendChecker) {
+	s.backendChecker = checker
+}
+
 // Addresses returns the display addresses of every listener the server binds to.
 func (s *WebSocketServer) Addresses() []string {
 	addrs := make([]string, len(s.bindings))
@@ -103,7 +111,7 @@ func (s *WebSocketServer) Start() error {
 		return NewSession(conn, s.factory)
 	}))
 	mux.HandleFunc("/v1/models", endpoints.Models(s.allowedModels, s.startTime))
-	mux.HandleFunc("/", endpoints.Health())
+	mux.HandleFunc("/health", endpoints.Health(s.startTime, s.backendChecker))
 
 	s.httpSrv = &http.Server{Handler: mux}
 	s.running = true

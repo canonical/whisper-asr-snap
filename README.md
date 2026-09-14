@@ -17,7 +17,7 @@ go run ./cmd/whisperlive-adapter serve --host 0.0.0.0 --port 8080
 Quick health check:
 
 ```bash
-curl http://127.0.0.1:8080/
+curl http://127.0.0.1:8080/health
 ```
 
 ### Unix socket mode
@@ -31,10 +31,25 @@ go run ./cmd/whisperlive-adapter serve --unix-socket /tmp/myna-adapter.sock
 Quick health check over Unix socket:
 
 ```bash
-curl --unix-socket /tmp/myna-adapter.sock http://localhost/
+curl --unix-socket /tmp/myna-adapter.sock http://localhost/health
 ```
 
 To bind both a TCP socket and a Unix domain socket at the same time, set both `--port` and `--unix-socket`.
+
+`/health` returns a JSON body describing process uptime and, if a backend check is configured, whether the transcription backend is currently reachable:
+
+```json
+{
+  "status": "ok",
+  "timestamp": "2026-09-14T09:24:04Z",
+  "uptime_seconds": 109.61,
+  "checks": {
+    "backend": { "status": "ok", "latency_ms": 3 }
+  }
+}
+```
+
+`status` is `"degraded"` (with an HTTP 503) if the backend check fails; in that case `checks.backend` reports `"status": "error"` along with an `error` message instead of `latency_ms`.
 
 ### Backend configuration
 
