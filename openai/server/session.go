@@ -32,11 +32,12 @@ type Session struct {
 	modelLoaded          bool // true if the backend has loaded a model
 	sessionStarted       bool // true if the user has sent any audio chunks
 	audioBufferCommitted bool // true if the user has sent InputAudioBufferCommit
+	sessionCreated       chan struct{}
 }
 
 // NewSession creates a Session bound to a user websocket connection.
 func NewSession(conn *websocket.Conn, factory backends.Factory) *Session {
-	return &Session{Connection: conn, factory: factory}
+	return &Session{Connection: conn, factory: factory, sessionCreated: make(chan struct{})}
 }
 
 // Start opens the backend session, waits until it is ready, and advertises the
@@ -66,6 +67,7 @@ func (s *Session) Start(ctx context.Context) error {
 	if err := s.send(created); err != nil {
 		return fmt.Errorf("sending session.created: %w", err)
 	}
+	close(s.sessionCreated)
 
 	// If the backend session ends (Myna closed the connection, errored,
 	// or we tore it down), close the user connection too.
@@ -326,6 +328,13 @@ func (s *Session) onCommit(text string) {
 
 // Invoked when the backend has loaded a model.
 func (s *Session) onModelLoaded() {
+	// Ensure session.created was sent before we can send model.loaded
+	select {
+	case <-s.sessionCreated:
+	case <-s.ctx.Done():
+		return
+	}
+
 	s.mu.Lock()
 	s.modelLoaded = true
 	s.mu.Unlock()
