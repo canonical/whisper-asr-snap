@@ -26,8 +26,8 @@ share_provider() {
         socket_filename=$(basename "$full_socket_path")
         socket_url=$(echo "$status_json" | jq -r '.entrypoints."openai-unix"."unix-socket-url"')
 
-        provider_env_content+="OPENAI_UNIX_BASE_URL=$socket_filename\n"
-        provider_env_content+="OPENAI_UNIX_SOCKET_URL=$socket_url\n"
+        provider_env_content+="UNIX_SOCKET=$socket_filename\n"
+        provider_env_content+="UNIX_SOCKET_URL=$socket_url\n"
     fi
 
     local share_dir="$SNAP_COMMON/share/provider"
