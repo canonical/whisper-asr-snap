@@ -37,7 +37,11 @@ share_provider() {
     fi
 
     local env_file_path="$share_dir/provider.env"
-    echo -e "$provider_env_content" > "$env_file_path"
+    local temp_env_file_path
+    temp_env_file_path=$(mktemp "$env_file_path.XXXXXX")
+    echo -e "$provider_env_content" > "$temp_env_file_path"
+    chmod 644 "$temp_env_file_path"
+    mv -f "$temp_env_file_path" "$env_file_path"
 }
 
 ensure_unix_socket_in_shared_content() {
