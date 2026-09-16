@@ -30,7 +30,7 @@ hooks:
     plugs: *install-plugs
 
 slots:
-  inference-provider:
+  provider:
     interface: content
     content: inference-provider
     source:
