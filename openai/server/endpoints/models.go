@@ -3,12 +3,9 @@ package endpoints
 import (
 	"encoding/json"
 	"net/http"
+	"os"
 	"time"
 )
-
-// modelOwner identifies this adapter as the "owner" of the models it
-// advertises, matching the "owned_by" field OpenAI clients expect.
-const modelOwner = "myna-adapter"
 
 // Model describes a single entry in the OpenAI-compatible /v1/models
 // response.
@@ -25,6 +22,15 @@ type ModelList struct {
 	Data   []Model `json:"data"`
 }
 
+func getModelOwner() string {
+	snapInstanceName := os.Getenv("SNAP_INSTANCE_NAME")
+
+	if snapInstanceName != "" {
+		return snapInstanceName
+	}
+	return "myna-adapter" // fallback value
+}
+
 // Models returns the /v1/models handler, listing allowedModels in an
 // OpenAI-compatible response. created is used as each model's "created"
 // timestamp.
@@ -37,6 +43,8 @@ func Models(allowedModels []string, created time.Time) http.HandlerFunc {
 		}
 
 		createdUnix := created.Unix()
+		modelOwner := getModelOwner()
+
 		data := make([]Model, 0, len(allowedModels))
 		for _, id := range allowedModels {
 			data = append(data, Model{
