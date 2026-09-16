@@ -2,7 +2,6 @@
 
 set -euo pipefail
 
-
 engine="$(modelctl status --format=json | jq -r .engine)"
 
 share_provider() {
@@ -22,9 +21,11 @@ share_provider() {
         local full_socket_path
         local socket_filename
         local socket_url
+
         full_socket_path=$(echo "$status_json" | jq -r '.entrypoints."openai-unix"."unix-socket"')
         socket_filename=$(basename "$full_socket_path")
         socket_url=$(echo "$status_json" | jq -r '.entrypoints."openai-unix"."unix-socket-url"')
+
         provider_env_content+="OPENAI_UNIX_BASE_URL=$socket_filename\n"
         provider_env_content+="OPENAI_UNIX_SOCKET_URL=$socket_url\n"
     fi
@@ -34,7 +35,7 @@ share_provider() {
         echo "Share directory does not exist, creating it: $share_dir"
         mkdir -p "$share_dir"
     fi
-    
+
     local env_file_path="$share_dir/provider.env"
     echo -e "$provider_env_content" > "$env_file_path"
 }
@@ -47,8 +48,10 @@ ensure_unix_socket_in_shared_content() {
         # Paths are normalized to prevent path traversal (i.e., use of "../" in the path)
         local normalized_share_dir
         local normalized_socket_path
+
         normalized_share_dir=$(realpath -m -- "$share_dir")
         normalized_socket_path=$(realpath -m -- "$unix_socket_path")
+
         if [[ "$normalized_socket_path" != "$normalized_share_dir/"* ]]; then
             echo "Unix socket path ($unix_socket_path) is not in the expected share directory ($share_dir)"
             exit 1
