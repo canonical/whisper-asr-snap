@@ -26,8 +26,8 @@ share_provider() {
 
     local share_dir="$SNAP_COMMON/share/provider"
     if [ ! -d "$share_dir" ]; then
-        echo "Share directory does not exist: $share_dir"
-        exit 1
+        echo "Share directory does not exist, creating it: $share_dir"
+        mkdir -p "$share_dir"
     fi
     
     local env_file_path="$share_dir/provider.env"
