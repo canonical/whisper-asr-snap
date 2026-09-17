@@ -17,6 +17,7 @@ import (
 	"log"
 	"math"
 	"myna-adapter/backends"
+	"net"
 	"net/url"
 	"os"
 	"slices"
@@ -132,7 +133,8 @@ func Dial(ctx context.Context, cfg Config) (*Client, error) {
 	if cfg.UseWSS {
 		scheme = "wss"
 	}
-	u := url.URL{Scheme: scheme, Host: fmt.Sprintf("%s:%d", cfg.Host, cfg.Port)}
+	host := net.JoinHostPort(cfg.Host, strconv.Itoa(cfg.Port))
+	u := url.URL{Scheme: scheme, Host: host}
 
 	conn, _, err := websocket.DefaultDialer.DialContext(ctx, u.String(), nil)
 	if err != nil {
