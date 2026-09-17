@@ -17,7 +17,7 @@ go run ./cmd/whisperlive-adapter serve --host 0.0.0.0 --port 8080
 Quick health check:
 
 ```bash
-curl http://127.0.0.1:8080/
+curl http://127.0.0.1:8080/health
 ```
 
 ### Unix socket mode
@@ -31,7 +31,7 @@ go run ./cmd/whisperlive-adapter serve --unix-socket /tmp/myna-adapter.sock
 Quick health check over Unix socket:
 
 ```bash
-curl --unix-socket /tmp/myna-adapter.sock http://localhost/
+curl --unix-socket /tmp/myna-adapter.sock http://localhost/health
 ```
 
 To bind both a TCP socket and a Unix domain socket at the same time, set both `--port` and `--unix-socket`.
