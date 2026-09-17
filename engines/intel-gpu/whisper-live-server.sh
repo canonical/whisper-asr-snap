@@ -21,14 +21,19 @@ echo "Launching engine..."
 # This workaround ensures that the model is found and no download takes place.
 # See: https://github.com/collabora/WhisperLive/blob/99cbc1c33b35c372b4790975f819dfde62f3e74a/whisper_live/transcriber/transcriber_openvino.py#L11
 
-mkdir -p /tmp/fake_home/.cache/openvino_whisper_models
+
+mock_home="/tmp/mock_home"
+models_dir="$mock_home"/.cache/openvino_whisper_models
+rm -r "$models_dir" || true
+mkdir -p "$models_dir"
+
 active_model_alias=$(modelctl show-model --format=json | jq -r .alias)
-ln -s "$MODEL_DIR" "/tmp/fake_home/.cache/openvino_whisper_models/$active_model_alias"
+ln -s "$MODEL_DIR" "$models_dir/$active_model_alias"
 
 # Batch inference is used to force single model mode
 
 set -x
-HOME=/tmp/fake_home python3 "$SERVER_RUN_SCRIPT" \
+HOME="$mock_home" python3 "$SERVER_RUN_SCRIPT" \
     --batch_inference \
     --cache_path "$MODEL_DIR" \
     --faster_whisper_custom_model_path "$MODEL_DIR" \
