@@ -103,7 +103,7 @@ func (s *WebSocketServer) Start() error {
 		return NewSession(conn, s.factory)
 	}))
 	mux.HandleFunc("/v1/models", endpoints.Models(s.allowedModels, s.startTime))
-	mux.HandleFunc("/health", endpoints.Health())
+	mux.HandleFunc("/{$}", endpoints.Root())
 
 	s.httpSrv = &http.Server{Handler: mux}
 	s.running = true
