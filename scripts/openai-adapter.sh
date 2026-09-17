@@ -2,11 +2,9 @@
 
 set -euo pipefail
 
-engine="$(modelctl status --format=json | jq -r .engine)"
+status_json=$(modelctl status --format=json)
 
 share_provider() {
-    local status_json
-    status_json=$(modelctl status --format=json)
     local provider_env_content="SNAP_NAME=$SNAP_NAME\nSNAP_INSTANCE_NAME=$SNAP_INSTANCE_NAME\n"
 
     # if status_json.entrypoints has a "openai" entry
@@ -47,7 +45,7 @@ share_provider() {
 ensure_unix_socket_in_shared_content() {
     local share_dir="$SNAP_COMMON/share/provider"
     local unix_socket_path
-    unix_socket_path=$(modelctl get http.unix-socket)
+    unix_socket_path=$(echo "$status_json" | jq -r '.entrypoints."openai-unix"."unix-socket"')
     if [ -n "$unix_socket_path" ]; then
         # Paths are normalized to prevent path traversal (i.e., use of "../" in the path)
         local normalized_share_dir
@@ -67,4 +65,5 @@ ensure_unix_socket_in_shared_content
 share_provider
 
 # TODO: use modelctl run --share-provider instead of share_provider() once every feature is implemented
+engine=$(echo "$status_json" | jq -r .engine)
 exec modelctl run -- "$SNAP/engines/$engine/openai-adapter.sh" "$@"
