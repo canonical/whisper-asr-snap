@@ -241,6 +241,11 @@ parts:
       mv LICENSE ${CRAFT_PART_INSTALL}/usr/share/doc/WhisperLive
 
       move_packages_to_component() {
+        local copy_instead_of_move=false
+        if [[ "$1" == "--copy" ]]; then
+          copy_instead_of_move=true
+          shift
+        fi
         local packages_filter="$1"
         local component_name="$2"
 
@@ -251,13 +256,17 @@ parts:
         mkdir -p "$destination_component_dir/site-packages/"
         cp -arf --link "${CRAFT_PART_INSTALL}"/lib/python*/site-packages/${packages_filter} \
           "$destination_component_dir/site-packages/"
-        rm -rf "${CRAFT_PART_INSTALL}"/lib/python*/site-packages/${packages_filter}
+
+        if [[ "$copy_instead_of_move" != true ]]; then 
+          rm -rf "${CRAFT_PART_INSTALL}"/lib/python*/site-packages/${packages_filter}
+        fi
       }
 
       # Move CUDA python packages and CUDA-pytorch to a separate component
       move_packages_to_component "torch*" "whisper-live-cuda"
       move_packages_to_component "nvidia*" "whisper-live-cuda"
-      move_packages_to_component "ctranslate2*" "whisper-live-cuda"
+      move_packages_to_component --copy "ctranslate2*" "whisper-live-cuda"
+      move_packages_to_component "ctranslate2*" "whisper-live-cpu"
       move_packages_to_component "openvino*" "whisper-live-openvino"
     organize:
       "*": (component/whisper-live)
@@ -269,9 +278,7 @@ parts:
       - python3-pip
       - pkg-config
     override-build: |
-      # Install pytorch CPU and move it to the CPU component
-      pip install "ctranslate2==4.8.2" --no-deps \
-        --target "$CRAFT_PART_INSTALL"/site-packages
+      # Install pytorch CPU
       pip install "torch==2.14.0+cpu" --no-deps \
         --index-url https://download.pytorch.org/whl/cpu \
         --target "$CRAFT_PART_INSTALL"/site-packages
