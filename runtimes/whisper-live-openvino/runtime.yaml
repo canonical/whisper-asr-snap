@@ -22,11 +22,14 @@ environment:
   - PYTHONPATH=$PYTHONPATH:$SNAP_COMPONENTS/whisper-live-cpu/site-packages
   # Add component's binaries
   - PATH=$PATH:$SNAP_COMPONENTS/whisper-live/bin
+  - PATH=$PATH:$SNAP_COMPONENTS/whisper-live-openvino/usr/bin
   # Add component's shared libraries
   - LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$SNAP_COMPONENTS/whisper-live/lib
   - LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$SNAP_COMPONENTS/whisper-live/usr/lib/$ARCH_TRIPLET
   - LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$SNAP_COMPONENTS/whisper-live-openvino/lib
   - LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$SNAP_COMPONENTS/whisper-live-openvino/usr/lib/$ARCH_TRIPLET
+  - LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$SNAP_COMPONENTS/whisper-live-openvino/usr/local/lib
+  - LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$SNAP_COMPONENTS/whisper-live-rocm/site-packages/openvino/libs
   - LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$SNAP_COMPONENTS/whisper-live-cpu/lib
   - LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$SNAP_COMPONENTS/whisper-live-cpu/usr/lib/$ARCH_TRIPLET
 
