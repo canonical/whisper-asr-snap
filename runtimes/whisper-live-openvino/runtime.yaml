@@ -18,8 +18,8 @@ environment:
   # Add the component's packages to PYTHONPATH
   - PYTHONPATH=$PYTHONPATH:$SNAP_COMPONENTS/whisper-live/lib/python3.12/site-packages
   - PYTHONPATH=$PYTHONPATH:$SNAP_COMPONENTS/whisper-live/lib64/python3.12/site-packages
-  # Add cuda component's packages to PYTHONPATH
   - PYTHONPATH=$PYTHONPATH:$SNAP_COMPONENTS/whisper-live-openvino/site-packages
+  - PYTHONPATH=$PYTHONPATH:$SNAP_COMPONENTS/whisper-live-cpu/site-packages
   # Add component's binaries
   - PATH=$PATH:$SNAP_COMPONENTS/whisper-live/bin
   # Add component's shared libraries
@@ -27,7 +27,10 @@ environment:
   - LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$SNAP_COMPONENTS/whisper-live/usr/lib/$ARCH_TRIPLET
   - LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$SNAP_COMPONENTS/whisper-live-openvino/lib
   - LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$SNAP_COMPONENTS/whisper-live-openvino/usr/lib/$ARCH_TRIPLET
+  - LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$SNAP_COMPONENTS/whisper-live-cpu/lib
+  - LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$SNAP_COMPONENTS/whisper-live-cpu/usr/lib/$ARCH_TRIPLET
 
 components:
   - whisper-live
+  - whisper-live-cpu # reuses CPU pytorch and CTranslate2
   - whisper-live-openvino

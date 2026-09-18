@@ -265,7 +265,6 @@ parts:
       # Move CUDA python packages and CUDA-pytorch to a separate component
       move_packages_to_component "torch*" "whisper-live-cuda"
       move_packages_to_component "nvidia*" "whisper-live-cuda"
-      move_packages_to_component --copy "ctranslate2*" "whisper-live-openvino"
       move_packages_to_component --copy "ctranslate2*" "whisper-live-cuda"
       move_packages_to_component "ctranslate2*" "whisper-live-cpu"
       move_packages_to_component "openvino*" "whisper-live-openvino"
