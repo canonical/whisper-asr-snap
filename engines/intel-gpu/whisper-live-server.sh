@@ -36,7 +36,6 @@ set -x
 HOME="$mock_home" python3 "$SERVER_RUN_SCRIPT" \
     --batch_inference \
     --cache_path "$MODEL_DIR" \
-    --faster_whisper_custom_model_path "$MODEL_DIR" \
     --host "$HOST" \
     --port "$PORT" \
     --backend "$BACKEND" \
