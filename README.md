@@ -14,7 +14,7 @@ Run with custom host and port (TCP is only enabled when `--port` is set):
 go run ./cmd/whisperlive-adapter serve --host 0.0.0.0 --port 8080
 ```
 
-Quick health check:
+Quick liveness check:
 
 ```bash
 curl http://127.0.0.1:8080/
@@ -28,7 +28,7 @@ Bind to a Unix domain socket path:
 go run ./cmd/whisperlive-adapter serve --unix-socket /tmp/myna-adapter.sock
 ```
 
-Quick health check over Unix socket:
+Quick liveness check over Unix socket:
 
 ```bash
 curl --unix-socket /tmp/myna-adapter.sock http://localhost/
