@@ -24,7 +24,7 @@ echo "Launching engine..."
 
 mock_home="/tmp/mock_home"
 models_dir="$mock_home"/.cache/openvino_whisper_models
-rm -r "$models_dir" || true
+rm -rf "$models_dir"
 mkdir -p "$models_dir"
 
 active_model_alias=$(modelctl show-model --format=json | jq -r .alias)
