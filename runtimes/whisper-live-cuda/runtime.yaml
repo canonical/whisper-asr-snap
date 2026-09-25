@@ -4,7 +4,7 @@ servers:
   openai:
     protocol: http
     base-path: /v1
-  openai-unix:
+  myna:
     protocol: http+unix
     base-path: /v1
   whisper-live:

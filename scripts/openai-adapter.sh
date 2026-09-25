@@ -2,10 +2,7 @@
 
 set -euo pipefail
 
-# TODO: introduce the export-shared-configs script
-# Export the configuration for content sharing
-# This must be done each time the server is started to expose the actual configuration
-# $SNAP/bin/export-shared-configs.sh
+status_json=$(modelctl status --format=json)
+engine=$(echo "$status_json" | jq -r .engine)
 
-engine="$(modelctl status --format=json | jq -r .engine)"
-exec modelctl run -- "$SNAP/engines/$engine/openai-adapter.sh" "$@"
+exec modelctl run --share-provider -- "$SNAP/engines/$engine/openai-adapter.sh" "$@"

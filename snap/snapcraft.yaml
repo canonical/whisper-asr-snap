@@ -30,17 +30,16 @@ hooks:
     plugs: *install-plugs
 
 slots:
-  stt-inference:
+  provider:
     interface: content
-    content: stt-inference
+    content: inference-provider
     source:
       write:
-        - &inference-share $SNAP_COMMON/share/inference
+        - $SNAP_COMMON/share/provider
 
 environment:
   SNAP_COMPONENTS: /snap/$SNAP_INSTANCE_NAME/components/$SNAP_REVISION
   ARCH_TRIPLET: $CRAFT_ARCH_TRIPLET_BUILD_FOR
-  INFERENCE_SHARE: *inference-share # Inference directory shared via content interface
   # This is to find the intel.icd file, containing the path to libigdrcl.so
   # Required for Intel GPU detection and communication
   OCL_ICD_VENDORS: $SNAP/etc/OpenCL/vendors
@@ -81,20 +80,34 @@ parts:
       set -eo pipefail
       cli_version=$($CRAFT_STAGE/bin/modelctl version --format=json | jq .cli --raw-output)
       git_hash=$(git -C "$SNAPCRAFT_PROJECT_DIR" describe --always)
-      craftctl set version="${cli_version#v}+${git_hash}"
+      craftctl set version="dev"
 
+#  cli:
+#    source:
+#      - on amd64: https://github.com/canonical/inference-snaps-cli/releases/download/v2.0.0-beta.15/inference-snaps-cli-linux-amd64.tar.xz
+#      - on arm64: https://github.com/canonical/inference-snaps-cli/releases/download/v2.0.0-beta.15/inference-snaps-cli-linux-arm64.tar.xz
+#    plugin: dump
+#    override-build: |
+#
+#      # For tab completion
+#      ln --symbolic ./modelctl bin/whisper-asr
+#
+#      craftctl default
+
+# TODO: replace with the cli part commented above when https://github.com/canonical/inference-snaps-cli/pull/451 is merged
   cli:
-    source:
-      - on amd64: https://github.com/canonical/inference-snaps-cli/releases/download/v2.0.0-beta.12/inference-snaps-cli-linux-amd64.tar.xz
-      - on arm64: https://github.com/canonical/inference-snaps-cli/releases/download/v2.0.0-beta.12/inference-snaps-cli-linux-arm64.tar.xz
-    plugin: dump
+    source: https://github.com/canonical/inference-snaps-cli.git
+    source-branch: IENG-2674/unix-socket-in-provider-env
+    plugin: go
+    build-snaps:
+      - go/1.26/stable
     override-build: |
-
-      # For tab completion
-      ln --symbolic ./modelctl bin/whisper-asr
-
       craftctl default
-    
+      # For tab completion
+      mkdir -p $CRAFT_PART_INSTALL/bin
+      cp completer/snap.bash $CRAFT_PART_INSTALL/bin/snap-completer.bash
+      ln --symbolic ./modelctl $CRAFT_PART_INSTALL/bin/whisper-asr
+
   cli-dependencies:
     plugin: nil
     stage-packages:
