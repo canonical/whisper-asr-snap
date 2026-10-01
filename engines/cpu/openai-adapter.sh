@@ -6,7 +6,6 @@ BACKEND_HOST=$(modelctl get whisper-live.ws.host)
 BACKEND_PORT=$(modelctl get whisper-live.ws.port)
 ADAPTER_HOST=$(modelctl get http.host)
 ADAPTER_PORT=$(modelctl get http.port)
-ADAPTER_SOCKET_PATH=$(modelctl get http.unix-socket)
 
 language=$(modelctl get transcription-language)
 
@@ -30,8 +29,9 @@ if [ "$language" == "system" ]; then
     fi
 fi
 
-# Prepare socket and shared directory for the adapter
-mkdir -p "$(dirname "$ADAPTER_SOCKET_PATH")"
+status_json=$(modelctl status --format=json)
+unix_socket_path=$(echo "$status_json" | jq -r '.entrypoints.myna."unix-socket"')
+mkdir -p "$(dirname "$unix_socket_path")"
 
 set -x
 $SNAP/bin/whisperlive-adapter serve \
@@ -39,7 +39,7 @@ $SNAP/bin/whisperlive-adapter serve \
     --backend-port "$BACKEND_PORT" \
     --host "$ADAPTER_HOST" \
     --port "$ADAPTER_PORT" \
-    --unix-socket "$ADAPTER_SOCKET_PATH" \
+    --unix-socket "$unix_socket_path" \
     --model "$active_model_alias" \
     --language "$language" \
     --allowed-models "$active_model_alias" \

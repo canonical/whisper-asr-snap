@@ -30,17 +30,16 @@ hooks:
     plugs: *install-plugs
 
 slots:
-  stt-inference:
+  provider:
     interface: content
-    content: stt-inference
+    content: inference-provider
     source:
       write:
-        - &inference-share $SNAP_COMMON/share/inference
+        - $SNAP_COMMON/share/provider
 
 environment:
   SNAP_COMPONENTS: /snap/$SNAP_INSTANCE_NAME/components/$SNAP_REVISION
   ARCH_TRIPLET: $CRAFT_ARCH_TRIPLET_BUILD_FOR
-  INFERENCE_SHARE: *inference-share # Inference directory shared via content interface
   # This is to find the intel.icd file, containing the path to libigdrcl.so
   # Required for Intel GPU detection and communication
   OCL_ICD_VENDORS: $SNAP/etc/OpenCL/vendors
@@ -85,8 +84,8 @@ parts:
 
   cli:
     source:
-      - on amd64: https://github.com/canonical/inference-snaps-cli/releases/download/v2.0.0-beta.12/inference-snaps-cli-linux-amd64.tar.xz
-      - on arm64: https://github.com/canonical/inference-snaps-cli/releases/download/v2.0.0-beta.12/inference-snaps-cli-linux-arm64.tar.xz
+      - on amd64: https://github.com/canonical/inference-snaps-cli/releases/download/v2.0.0-beta.15/inference-snaps-cli-linux-amd64.tar.xz
+      - on arm64: https://github.com/canonical/inference-snaps-cli/releases/download/v2.0.0-beta.15/inference-snaps-cli-linux-arm64.tar.xz
     plugin: dump
     override-build: |
 
@@ -94,7 +93,7 @@ parts:
       ln --symbolic ./modelctl bin/whisper-asr
 
       craftctl default
-    
+
   cli-dependencies:
     plugin: nil
     stage-packages:
